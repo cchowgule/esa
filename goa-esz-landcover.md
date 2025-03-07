@@ -7,7 +7,9 @@ Here’s how I pulled together data on landcover change for villages intersectin
 1. Prepping the ESZ and Village Layers
 
 - Eco-Sensitive Zone (ESZ) Buffer:
+
   - I used the shapefile of Goa’s PAs you shared and created a 1 km buffer around them in QGIS to define the ESZ.
+
 - Village Boundaries:
 
   - Village boundaries came from the SHRUG database ([ https://www.devdatalab.org/shrug_download/ ]). It’s a curated and consistent dataset with spatially linked Census data with many other fields that may be relevant.

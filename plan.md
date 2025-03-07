@@ -13,6 +13,7 @@ Let's start with some basic stats:
 ## Questions
 
 - What else do we need?
+- What are meaningful landcover class groupings?
 
 ## Possibilities
 
