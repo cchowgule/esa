@@ -1,9 +1,10 @@
 import os.path
 
+import geopandas as gp
 import pandas as pd
 
 
-def get_data(file_path):
+def get_cover_data(file_path):
     location_data = pd.read_csv(
         os.path.dirname(__file__) + "/../data/shrid_loc_names.csv"
     )
@@ -52,3 +53,16 @@ def get_data(file_path):
     ).sort_index()
 
     return df
+
+
+def get_shape_data(file_path):
+    gdf = gp.read_file(file_path)
+
+    gdf = gdf.rename({"Name": "name", "geometry": "with_buffer"}, axis=1)
+    gdf = gdf.set_index("name")
+    gdf = gdf.drop(columns=["Shape_Leng", "Shape_Area"])
+    gdf["pa"] = gdf["with_buffer"].buffer(-1000)
+    gdf["buffer"] = gdf["with_buffer"].difference(gdf["pa"])
+    gdf = gdf.drop(columns=["with_buffer"])
+
+    return gdf
