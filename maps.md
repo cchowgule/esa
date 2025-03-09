@@ -2,4 +2,6 @@
 
 ## All PAs with and without villages
 
-![PAs w/o villages](maps/wo_villages/pas_wo_villages.png | width=100) ![PAs w villages](maps/w_villages/pas_w_villages.png)
+### Without villages
+
+<img src="https://github.com/cchowgule/esa/blob/main/maps/wo_villages/pas_wo_villages.png" width="250"/>
