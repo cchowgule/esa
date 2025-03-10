@@ -13,10 +13,11 @@ def plot_pas(ax, pas, buffer=True):
     pas["pa"].plot(
         ax=ax, linewidth=0.5, ec="green", hatch_linewidth=0.5, hatch="///", fc="none"
     )
+
     pas.apply(
         lambda x: ax.annotate(
             text=x["name"],
-            xy=x["pa"].centroid.coords[0],
+            xy=x["pa"].representative_point().coords[0],
             ha="center",
             wrap=True,
             color="green",
@@ -60,10 +61,11 @@ def plot_admin(ax, gdf):
     ]
 
     gdf.plot(ax=ax, linewidth=0.5, ec="grey", fc="none", linestyle="--")
+
     gdf.apply(
         lambda x: ax.annotate(
             text=x["name"],
-            xy=x.geometry.centroid.coords[0],
+            xy=x.geometry.representative_point().coords[0],
             ha="center",
             wrap=True,
             color="grey",
@@ -81,7 +83,7 @@ def save_png(fig, f_name):
     return "figure saved"
 
 
-def multi_plot_pas(row, buffer=True, admins=[]):
+def multi_plot_pas(row, admins=[]):
     name = str(row.name) + "_" + row["name"]
     fig, ax = make_fig(name)
 
@@ -89,27 +91,56 @@ def multi_plot_pas(row, buffer=True, admins=[]):
         plot_admin(ax, a)
 
     pa = gp.GeoSeries(row.pa)
+    pa_buffer = gp.GeoSeries(row.buffer)
+    total = gp.GeoSeries(row.pa.union(row.buffer))
+
     pa.plot(
         ax=ax, linewidth=0.5, ec="green", hatch_linewidth=0.5, hatch="///", fc="none"
     )
 
-    pa_bounds = pa.bounds
-
-    pa_centroid = pa.centroid.get_coordinates().values[0]
+    pa_rep_point = pa.representative_point().get_coordinates().values[0]
 
     ax.annotate(
         text=row["name"],
-        xy=(pa_centroid[0], pa_centroid[1]),
+        xy=(pa_rep_point[0], pa_rep_point[1]),
         ha="center",
         wrap=True,
         color="green",
         fontsize="medium",
     )
 
-    if buffer:
-        pa_buffer = gp.GeoSeries(row["buffer"])
+    pa_buffer.plot(
+        ax=ax,
+        linewidth=0.5,
+        ec="yellow",
+        hatch_linewidth=0.5,
+        hatch="///",
+        fc="none",
+    )
 
-        pa_buffer.plot(
+    pa_bounds = total.bounds
+
+    xylimits = pa_bounds.values[0]
+
+    plt.xlim(xylimits[0], xylimits[2])
+    plt.ylim(xylimits[1], xylimits[3])
+
+    return [name, fig]
+
+
+def plot_zip(gdf, lst):
+    figs = []
+
+    for i in range(len(lst)):
+        fig, ax = make_fig(str(i))
+
+        plot_admin(ax, lst[i])
+
+        name = gdf.loc[0, "name"]
+        pa = gp.GeoSeries(gdf.loc[i, "pa"])
+        buffer = gp.GeoSeries(gdf.loc[i, "buffer"])
+
+        buffer.plot(
             ax=ax,
             linewidth=0.5,
             ec="yellow",
@@ -118,11 +149,31 @@ def multi_plot_pas(row, buffer=True, admins=[]):
             fc="none",
         )
 
-        pa_bounds = pa_buffer.bounds
+        pa.plot(
+            ax=ax,
+            linewidth=0.5,
+            ec="green",
+            hatch_linewidth=0.5,
+            hatch="///",
+            fc="none",
+        )
 
-    xylimits = pa_bounds.values[0]
+        pa_rep_point = pa.representative_point().get_coordinates().values[0]
 
-    plt.xlim(xylimits[0], xylimits[2])
-    plt.ylim(xylimits[1], xylimits[3])
+        ax.annotate(
+            text=name,
+            xy=(pa_rep_point[0], pa_rep_point[1]),
+            ha="center",
+            wrap=True,
+            color="green",
+            fontsize="medium",
+        )
 
-    return [name, fig]
+        xylimits = lst[i].bounds
+
+        plt.xlim(xylimits["minx"].min(), xylimits["maxx"].max())
+        plt.ylim(xylimits["miny"].min(), xylimits["maxy"].max())
+
+        figs.append(fig)
+
+    return figs

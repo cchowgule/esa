@@ -22,3 +22,7 @@ Let's start with some basic stats:
 ## Test for plotly
 
 {% include_relative plotly_graph.html %}
+
+## Coordinate reference system
+
+I am using EPSG:7779 as it is localised to Goa and our area of interest is so small.
