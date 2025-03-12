@@ -177,3 +177,11 @@ def plot_zip(gdf, lst):
         figs.append(fig)
 
     return figs
+
+
+def get_intersects(gdf, p):
+    gdf2 = gdf.copy()
+    gdf2["geometry"] = gdf["geometry"].intersection(p)
+    gdf2 = gdf2[~gdf2["geometry"].is_empty]
+
+    return gdf2
