@@ -2,6 +2,9 @@
 
 <!--LTeX: enabled=false-->
 
+- Figure out the reducer on GEE
+- Filtering on bounds works fine, gets rectangle
+
 Let's start with some basic stats:
 
 - Group by village code, across time series

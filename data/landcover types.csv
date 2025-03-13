@@ -1,0 +1,36 @@
+Basic classification system,Basic id,Level-1 validation system,Level-1 id,Fine classification system,ID
+Cropland,CRP,Rainfed cropland,RCP,Rainfed cropland,10
+Cropland,CRP,Rainfed cropland,RCP,Herbaceous cover cropland,11
+Cropland,CRP,Rainfed cropland,RCP,Tree or shrub cover cropland,12
+Cropland,CRP,Irrigated cropland,ICP,Irrigated cropland,20
+Forest,FST,Evergreen broadleaved forest,EBF,Closed evergreen broadleaved forest,51
+Forest,FST,Evergreen broadleaved forest,EBF,Open evergreen broadleaved forest,52
+Forest,FST,Deciduous broadleaved forest,BDF,Closed deciduous broadleaved forest,61
+Forest,FST,Deciduous broadleaved forest,BDF,Open deciduous broadleaved forest,62
+Forest,FST,Evergreen needleleaved forest,ENF,Closed evergreen needleleaved forest,71
+Forest,FST,Evergreen needleleaved forest,ENF,Open evergreen needleleaved forest,72
+Forest,FST,Deciduous needleleaved forest,DNF,Closed deciduous needleleaved forest,81
+Forest,FST,Deciduous needleleaved forest,DNF,Open deciduous needleleaved forest,82
+Forest,FST,Mixed-leaf forest,MFT,Closed mixed-leaf forest,91
+Forest,FST,Mixed-leaf forest,MFT,Open mixed-leaf forest,92
+Shrubland,SHR,Shrubland,SHR,Shrubland,120
+Shrubland,SHR,Shrubland,SHR,Evergreen shrubland,121
+Shrubland,SHR,Shrubland,SHR,Deciduous shrubland,122
+Grassland,GRS,Grassland,GRS,Grassland,130
+Tundra,TUD,Lichens and mosses,LMS,Lichens and mosses,140
+Wetland,WET,Inland wetland,IWL,Swamp,181
+Wetland,WET,Inland wetland,IWL,Marsh,182
+Wetland,WET,Inland wetland,IWL,Flooded flat,183
+Wetland,WET,Inland wetland,IWL,Saline,184
+Wetland,WET,Coastal wetland,CWL,Mangrove,185
+Wetland,WET,Coastal wetland,CWL,Salt marsh,186
+Wetland,WET,Coastal wetland,CWL,Tidal flat,187
+Impervious surface,IMP,Impervious surface,IMP,Impervious surface,190
+Bare areas,BAL,Sparse vegetation,SVG,Sparse vegetation,150
+Bare areas,BAL,Sparse vegetation,SVG,Sparse shrubland,152
+Bare areas,BAL,Sparse vegetation,SVG,Sparse herbaceous cover,153
+Bare areas,BAL,Bare areas,BAL,Bare areas,200
+Bare areas,BAL,Bare areas,BAL,Consolidated bare areas,201
+Bare areas,BAL,Bare areas,BAL,Unconsolidated bare areas,202
+Water body,WTR,Water body,WTR,Water body,210
+Permanent snow and ice,PSI,Permanent snow and ice,PSI,Permanent snow and ice,220
