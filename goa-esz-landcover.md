@@ -94,28 +94,31 @@ var fiveyearMosaicRenamed = fiveYearMosaic.rename(fiveYearsList);
 
 // Combine annual and five-yearly mosaics
 var mosaicsCol = ee.ImageCollection.fromImages(
-fiveYearsList.map(function(year) {
-return fiveyearMosaicRenamed.select([year]).set('year', ee.Number.parse(year));
-}).cat(
-yearsList.map(function(year) {
-return annualMosaicRenamed.select([year]).set('year', ee.Number.parse(year));
+  fiveYearsList.map(function(year) {
+    return fiveyearMosaicRenamed.select([year]).set('year', ee.Number.parse(year));
+  }).cat(
+    yearsList.map(function(year) {
+      return annualMosaicRenamed.select([year]).set('year', ee.Number.parse(year));
 })
 )
 );
 
 // Calculate area by class for each village
 var landcoverStats = mosaicsCol.map(function(image) {
-return image.reduceRegions({
-collection: ga_esz_villages,
-reducer: ee.Reducer.sum().group({groupField: 1, groupName: 'class'}),
-scale: 30
-}).map(function(feature) {
-var classAreas = ee.List(feature.get('groups'));
-var properties = ee.Dictionary.fromLists(
-classNames, classAreas.map(function(item) {return ee.Dictionary(item).get('sum');})
-);
-return feature.set(properties).set('year', image.get('year'));
-});
+  return image.reduceRegions({
+    collection: ga_esz_villages,
+    reducer: ee.Reducer.sum().group({groupField: 1, groupName: 'class'}),
+    scale: 30
+  }).map(function(feature) {
+    var classAreas = ee.List(feature.get('groups'));
+    var properties = ee.Dictionary.fromLists(
+      classNames, classAreas.map(function(item) {
+        return ee.Dictionary(item).get('sum');
+      })
+    );
+
+    return feature.set(properties).set('year', image.get('year'));
+  });
 }).flatten();
 
 // Export the results
