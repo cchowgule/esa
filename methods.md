@@ -4,6 +4,9 @@ The following data preparation was done in Python using the following packages a
 
 - geopandas
 - matplotlib
+- pandas
+- ee
+- geemap
 
 I used the interactive shell IPython as it allows for a richer visual experience and provides methods for previewing maps and graphs.
 
@@ -76,7 +79,7 @@ pas['buffer'] = pas['pa'].buffer(1000)
 pas['buffer'] = pas['buffer'].difference(pas['pa'])
 ```
 
-The buffers constructed above do not take into account the fact that most of the PAs are contiguous and along Goa's eastern border. The buffers overlap each other, other PAs or fall outside the state. They need to be clipped account for these inconsistencies.
+The buffers constructed above do not take into account the fact that most of the PAs are contiguous and along Goa's eastern border. The buffers overlap each other, other PAs or fall outside the state. They need to be clipped to account for these inconsistencies.
 
 The state's boundaries are taken from [the SHRUG](https://www.devdatalab.org/shrug) and preprocessed to include only the polygon representing Goa and have been reprojected into [EPSG:7779](https://spatialreference.org/ref/epsg/7779/).
 
@@ -123,6 +126,8 @@ The dataset is indexed at the following levels:
 The dataset is saved as "clipped_villages.feather".
 
 ```
+import pandas as pd
+
 villages = gp.read_feather('feathers/admin_units/villages.feather')
 
 def clip_villages(row):
@@ -154,7 +159,8 @@ pas.apply(clip_villages, axis=1)
 # Concatenate all the GeoDataFrames together
 clipped_villages = pd.concat(gdfs)
 
-clipped_villages.to_feather('feathers/clipped_villages.feather')
+# Uncomment below to save the dataset
+# clipped_villages.to_feather('feathers/clipped_villages.feather')
 ```
 
 ### 1.3 - Maps
@@ -318,7 +324,7 @@ The sections are Google Earth Engine image collections containing 2 images each,
 
 The land-cover types and their aggregations have been tabulated in the file "GLC_FCS30D_land_cover_types.csv". The RGB values associated with each of the types have been tabulated in the file "GLC_FCS30D_land_cover_colours.csv".
 
-The final dataset is created by taking the frequency of each land-cover type within each admin. unit polygon and multiplying it by the resolution (30 m). This results in a dataframe with each admin. unit from "clipped_villages.feather" associated with the area in square metres of each land-cover type.
+The final dataset is created by taking the frequency of each land-cover type within each admin. unit polygon for each time interval and multiplying it by the resolution (30x30 m). This results in a dataframe with each admin. unit from "clipped_villages.feather" associated with the area in square metres of each land-cover type for each time interval (either five-yearly or annual).
 
 Each admin. unit is indexed by:
 
@@ -328,6 +334,8 @@ Each admin. unit is indexed by:
 4. Political Census of India 2011 district ID
 5. Political Census of India 2011 subdistrict ID
 6. Political Census of India 2011 town/village ID
+7. Year - 1985 to 2000 in 5 year intervals, 2000 to 2022 in 1 year intervals
+8. Name of the admin. unit
 
 The admin. units can be linked back to their individual polygons and the polygons for the PAs and buffers using the "clipped_villages.feather" dataset.
 
@@ -338,3 +346,142 @@ Land-cover types are indexed by:
 3. Fine ID
 
 These IDs can be linked back to descriptive names using the "GLC_FCS30D_land_cover_types.csv" dataset.
+
+```
+import ee
+
+import geemap as gm
+
+# Uncomment to authenticate with your
+#   Google Earth Engine credentials
+# ee.Authenticate()
+
+# Initialise with your own Google Cloud project
+ee.Initialize(project='XXXXXXXXXXXXXX')
+
+# Convert GeoDataFrame to Earth Engine FeatureCollection
+#   Reporject to EPSG:4326, Google Earth Engine's default
+to_fc = clipped_villages.drop(columns=['mdds_og'])
+
+to_fc = to_fc.to_crs('EPSG:4326')
+
+village_fc = gm.gdf_to_ee(to_fc)
+
+# Access GLC_FCS30D 2000 - 2022 annual dataset and
+#   filter for area of interest
+glc_annual = ee.ImageCollection('projects/sat-io/open-datasets/GLC-FCS30D/annual').filterBounds(village_fc)
+
+# Access GLC_FCS30D 1985 - 1995 five-yearly dataset and
+#   filter for area of interest
+glc_five_year = ee.ImageCollection('projects/sat-io/open-datasets/GLC-FCS30D/five-years-map').filterBounds(village_fc)
+
+# Mosaic the 2 images together for each ImageCollection
+glc_annual = glc_annual.mosaic()
+
+glc_five_year = glc_five_year.mosaic()
+
+# Rename bands to years
+glc_annual = glc_annual.rename(ee.List.sequence(2000, 2022).map(lambda x: ee.Number(x).format('%04d')))
+
+glc_five_year = glc_five_year.rename(ee.List.sequence(1985, 1995, 5).map(lambda x: ee.Number(x).format('%04d')))
+
+# Combine all bands into 1 image
+glc_all_years = glc_five_year.addBands(glc_annual)
+
+# Get frequency for
+#   each land-cover type,
+#   for each admin. unit,
+#   for each year
+lc_data_fc = glc_all_years.reduceRegions(
+    collection=village_fc,
+    reducer=ee.Reducer.frequencyHistogram(),
+    scale=30,
+    crs='EPSG:7779')
+
+# Drop all geometries
+lc_data_fc = lc_data_fc.select(propertySelectors=['.*'], retainGeometry=False)
+
+# Convert FeatureCollection to DataFrame
+lc_data_df = gm.ee_to_df(lc_data_fc)
+
+# Unpivot years from columns to values
+lc_data_df = pd.melt(lc_data_df, id_vars=['esz', 'part', 'pc11_state_id', 'pc11_district_id', 'pc11_subdistrict_id', 'pc11_town_village_id', 'name'], var_name='year')
+
+# Spread "value" column dictionary into
+#   columns of land-cover types
+lc_data_df = pd.concat([lc_data_df, pd.json_normalize(lc_data_df['value'])], axis=1)
+
+# Convert "year" column to datetime
+lc_data_df['year'] = pd.to_datetime(lc_data_df['year'], format="%Y")
+
+# Set index
+lc_data_df = lc_data_df.set_index(['esz', 'part', 'pc11_state_id', 'pc11_district_id', 'pc11_subdistrict_id', 'pc11_town_village_id', 'name', 'year'])
+
+# Sort land-cover type columns
+lc_type_cols = lc_data_df.select_dtypes(include='number').columns.to_list()
+
+lc_type_cols = [int(x) for x in lc_type_cols if x != '0']
+
+lc_type_cols.sort()
+
+lc_type_cols = [str(x) for x in lc_type_cols]
+
+lc_type_cols = lc_type_cols + ['0']
+
+lc_data_df = lc_data_df[lc_type_cols]
+
+# Index columns by land-cover type aggregations
+lc_types = pd.read_feather('feathers/GLC_FCS30D_landcover_types.feather')
+
+lc_types = lc_types.reset_index()
+
+lc_type_tuples = list(lc_types[['basic_id', 'level_1_id', 'fine_id']].itertuples(index=False, name=None))
+
+lc_type_tuples = [x for x in lc_type_tuples if str(x[2]) in lc_type_cols]
+
+lc_type_tuples = lc_type_tuples + [('XXX', 'XXX', 0)]
+
+lc_data_df.columns = pd.MultiIndex.from_tuples(t for t in lc_type_tuples if str(t[2]) in lc_type_cols)
+
+lc_data_df.columns.names = ['basic_id', 'level_1_id', 'fine_id']
+
+# Uncomment below to save frequency dataset
+# lc_data_df.to_feather('feathers/land_cover_frequency.feather')
+
+# Multiply all columns by 30*30 to convert frequency to area
+lc_data_df *= (30 * 30)
+
+# Uncomment below to save area dataset
+# lc_data_df.to_feather('feathers/land_cover_area.feather')
+
+# Check the difference between total area of
+#   an admin. unit's total land-cover types and
+#   polygon
+areas = pd.DataFrame(lc_data_df.sum(axis=1))
+
+areas = areas.rename(columns={0: 'land_cover'})
+
+areas['polygon'] = clipped_villages['geometry'].area
+
+areas['difference'] = areas['polygon'] - areas['land_cover']
+
+area_stats = areas['polygon', difference'].describe()
+
+print(area_stats.to_markdown())
+```
+
+#### Difference in areas between land-cover and polygons
+
+|      |   polygon(m2) | difference (m2) |
+| :--- | ------------: | --------------: |
+| mean |  4,159,400.00 |          362.42 |
+| std  |  8,793,100.00 |          421.17 |
+| min  |          1.05 |         -723.20 |
+| 25%  |    201,948.00 |          107.82 |
+| 50%  |  1,565,900.00 |          256.96 |
+| 75%  |  3,697,260.00 |          502.43 |
+| max  | 85,424,800.00 |        2,897.57 |
+
+As the table above shows there is a difference between the area of any given admin. unit when calculated by summing up all the land-cover type areas vs. the area of its polygon. This is because when the global land-cover dataset is reduced to match the polygons defining the admin. units, some pixels are only partially contained within the polygons. The [frequency histogram reducer](https://developers.google.com/earth-engine/apidocs/ee-reducer-frequencyhistogram) uses a weighting algorithm to determine if the value of that pixel should be included or not.
+
+On average this difference represents less than 0.001% of the area of the admin. unit, granted with a significant variability in the statistic.
