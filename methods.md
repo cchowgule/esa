@@ -322,7 +322,7 @@ The dataset is divided into 2 sections: the annual section containing annual dat
 
 The sections are Google Earth Engine image collections containing 2 images each, divided geographically. Each band in each section represents an annual/five-yearly dataset. Therefore, the five-yearly set has 3 bands and the annual has 23. Each pixel represents a 30x30 m area and is coded with 1 of the land-cover types as described in the paper above.
 
-The land-cover types and their aggregations have been tabulated in the file "GLC_FCS30D_land_cover_types.csv". The RGB values associated with each of the types have been tabulated in the file "GLC_FCS30D_land_cover_colours.csv".
+The land-cover types, their IDs, descriptive names and colour codes are stored in the "GLC_FCS30D_land_cover_types.feather" dataset.
 
 The final dataset is created by taking the frequency of each land-cover type within each admin. unit polygon for each time interval and multiplying it by the resolution (30x30 m). This results in a dataframe with each admin. unit from "clipped_villages.feather" associated with the area in square metres of each land-cover type for each time interval (either five-yearly or annual).
 
@@ -345,7 +345,7 @@ Land-cover types are indexed by:
 2. Level-1 ID
 3. Fine ID
 
-These IDs can be linked back to descriptive names using the "GLC_FCS30D_land_cover_types.csv" dataset.
+These IDs can be linked back to descriptive names using the "GLC_FCS30D_land_cover_types.feather" dataset.
 
 ```
 import ee
