@@ -1,6 +1,6 @@
-# Data preparation methods
+# Exploration of land-cover changes in the Protected Areas and buffer zones of Goa's wildlife sanctuaries and national parks
 
-The following data preparation was done in Python using the following packages and libraries:
+This exploration was done in Python using the following packages and libraries:
 
 - geopandas
 - matplotlib
@@ -16,9 +16,11 @@ Data is drawn from:
 - [The SHRUG](https://www.devdatalab.org/shrug)
 - [Global 30-meter Land Cover Change Dataset (1985-2022) - (GLC_FCS30D)](https://gee-community-catalog.org/projects/glc_fcs/)
 
-## 1 - Protected area, buffer & village/town polygons
+## Data preparation methods
 
-### 1.1 - Protected area & buffer polygons
+### 1 - Protected area, buffer & village/town polygons
+
+#### 1.1 - Protected area & buffer polygons
 
 In order to capture meaningful land cover changes we first need to create useful polygons to define areas of interest. I started with the shapefile "Notified_PA_Goa" created by \_\_\_\_ for each of the 7 notified protected areas:
 
@@ -163,7 +165,7 @@ clipped_villages = pd.concat(gdfs)
 # clipped_villages.to_feather('feathers/clipped_villages.feather')
 ```
 
-### 1.3 - Maps
+#### 1.3 - Maps
 
 Mapping the clipped villages over their respective PAs and buffers gives the following figures.
 
@@ -314,7 +316,7 @@ pas.apply(map_buffers, axis=1)
 ![Dr Salim Ali WLS PA](pngs/7_Dr_Salim_Ali_WLS_PA.png)
 ![Dr Salim Ali WLS buffer](pngs/7_Dr_Salim_Ali_WLS_buffer.png)
 
-## 2 - Land-cover data
+### 2 - Land-cover data
 
 Land-cover data is drawn from the [Global 30-meter Land Cover Change Dataset (1985-2022) - (GLC_FCS30D)](https://gee-community-catalog.org/projects/glc_fcs/). More information on it and the land-cover types used can be found in the paper [GLC_FCS30D: the first global 30 m land-cover dynamics monitoring product with a fine classification system for the period from 1985 to 2022 generated using dense-time-series Landsat imagery and the continuous change-detection method](https://essd.copernicus.org/articles/16/1353/2024/).
 
@@ -445,6 +447,9 @@ lc_data_df.columns = pd.MultiIndex.from_tuples(t for t in lc_type_tuples if str(
 
 lc_data_df.columns.names = ['basic_id', 'level_1_id', 'fine_id']
 
+# Replace NaNs with 0s
+lc_data_df.fillna(0)
+
 # Uncomment below to save frequency dataset
 # lc_data_df.to_feather('feathers/land_cover_frequency.feather')
 
@@ -465,12 +470,15 @@ areas['polygon'] = clipped_villages['geometry'].area
 
 areas['difference'] = areas['polygon'] - areas['land_cover']
 
-area_stats = areas['polygon', difference'].describe()
+area_stats = areas[['polygon', 'difference']].describe()
 
 print(area_stats.to_markdown())
+
+# Uncomment below to save the area dataset
+# areas.to_feather('feathers/areas.feather')
 ```
 
-#### Difference in areas between land-cover and polygons
+##### Difference in areas between land-cover and polygons
 
 |      |   polygon(m2) | difference (m2) |
 | :--- | ------------: | --------------: |
@@ -485,3 +493,172 @@ print(area_stats.to_markdown())
 As the table above shows there is a difference between the area of any given admin. unit when calculated by summing up all the land-cover type areas vs. the area of its polygon. This is because when the global land-cover dataset is reduced to match the polygons defining the admin. units, some pixels are only partially contained within the polygons. The [frequency histogram reducer](https://developers.google.com/earth-engine/apidocs/ee-reducer-frequencyhistogram) uses a weighting algorithm to determine if the value of that pixel should be included or not.
 
 On average this difference represents less than 0.001% of the area of the admin. unit, granted with a significant variability in the statistic.
+
+## Data analysis methods
+
+### 1 - Grouping and aggregating data
+
+Certain land-cover types cover a significantly greater proportion of both the PAs and buffers. Average fractional values over the entire dataset aggregated to the basic classification system show which types predominate in each PA and buffer.
+
+```
+import pandas as pd
+
+# Read in data
+land_cover_area = pd.read_feather('feathers/land_cover_area.feather')
+
+lc_types = pd.read_feather('feathers/GLC_FCS30D_landcover_types.feather')
+
+areas = pd.read_feather('feathers/areas.feather')
+
+# Sum all admin. units grouped by ESZ PA and buffer
+land_cover_area = land_cover_area.groupby(['esz', 'part', 'year']).sum()
+
+areas = areas.groupby(['esz', 'part', 'year']).sum()
+
+# Convert area to fraction of total
+land_cover_fraction = land_cover_area.div(areas['land_cover'], axis=0)
+
+# Average all years' land-cover fractions grouped by ESZ PA and buffer
+# Transpose
+fine_mean = land_cover_fraction.groupby(['esz', 'part']).mean().T
+
+# Reset index to names of land-cover types
+fine_mean[['basic_name', 'level_1_name', 'fine_name']] = lc_types[['basic_classification_system', 'level_1_validation_system', 'fine_classification_system']]
+
+fine_mean.loc[('XXX', 'XXX', 0), ['basic_name', 'level_1_name', 'fine_name']] = 'Filled value'
+
+fine_mean = fine_mean.set_index(['basic_name', 'level_1_name', 'fine_name'])
+
+# Aggregate means by land-cover aggregation levels
+level_1_mean = fine_mean.groupby(['basic_name', 'level_1_name']).sum()
+
+basic_mean = fine_mean.groupby(['basic_name']).sum()
+
+eszs = list(set(x[0] for x in fine_mean.columns.to_list()))
+
+eszs.sort()
+
+# Print Markdown tables of basic classification types for each ESZ
+for e in eszs:
+     print()
+     print(e.replace('_', ' '))
+     print()
+     print(basic_mean[e].round(4).to_markdown())
+
+# Uncomment below to save mean datasets
+# fine_mean.to_feather('feathers/fine_mean.feather')
+# level_1_mean.to_feather('feathers/level_1_mean.feather')
+# basic_mean.to_feather('feathers/basic_mean.feather')
+```
+
+##### 0 Mhadei WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         | 0.0002 | 0.0001 |
+| Cropland           | 0.0085 | 0.0025 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.9672 | 0.9952 |
+| Grassland          | 0.0008 | 0.0002 |
+| Impervious surface | 0.0012 | 0.0002 |
+| Shrubland          | 0.0004 | 0.0008 |
+| Water body         | 0.0134 | 0.0002 |
+| Wetland            | 0.0083 | 0.0008 |
+
+##### 1 Bhagwan Mahavir WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         |      0 |      0 |
+| Cropland           | 0.0101 | 0.0011 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.9805 | 0.9984 |
+| Grassland          | 0.0067 | 0.0002 |
+| Impervious surface | 0.0009 |      0 |
+| Shrubland          |  0.001 | 0.0003 |
+| Water body         | 0.0001 |      0 |
+| Wetland            | 0.0007 |      0 |
+
+##### 2 Mollem NP
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         | 0.0002 |      0 |
+| Cropland           | 0.0106 | 0.0012 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.9739 | 0.9979 |
+| Grassland          | 0.0041 | 0.0007 |
+| Impervious surface | 0.0088 |      0 |
+| Shrubland          | 0.0005 | 0.0002 |
+| Water body         | 0.0005 |      0 |
+| Wetland            | 0.0014 |      0 |
+
+##### 3 Bhagwan Mahavir WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         | 0.0004 |      0 |
+| Cropland           | 0.0185 |  0.002 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.9599 | 0.9963 |
+| Grassland          | 0.0096 | 0.0013 |
+| Impervious surface | 0.0019 | 0.0002 |
+| Shrubland          | 0.0019 | 0.0002 |
+| Water body         |  0.004 |      0 |
+| Wetland            | 0.0037 | 0.0001 |
+
+##### 4 Bondla WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         |      0 |      0 |
+| Cropland           | 0.0014 | 0.0001 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.9965 | 0.9997 |
+| Grassland          | 0.0001 |      0 |
+| Impervious surface |  0.002 |      0 |
+| Shrubland          | 0.0001 |      0 |
+| Water body         |      0 |      0 |
+| Wetland            |      0 | 0.0001 |
+
+##### 5 Netravali WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         | 0.0004 |      0 |
+| Cropland           | 0.0141 | 0.0016 |
+| Filled value       | 0.0002 | 0.0001 |
+| Forest             | 0.8129 | 0.9803 |
+| Grassland          | 0.0061 | 0.0011 |
+| Impervious surface | 0.0003 |      0 |
+| Shrubland          | 0.0114 |  0.015 |
+| Water body         | 0.1094 | 0.0005 |
+| Wetland            | 0.0452 | 0.0013 |
+
+##### 6 Cotigaon WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         |      0 |      0 |
+| Cropland           | 0.0539 | 0.0054 |
+| Filled value       |  0.001 | 0.0014 |
+| Forest             |  0.926 | 0.9766 |
+| Grassland          | 0.0016 |      0 |
+| Impervious surface | 0.0005 |      0 |
+| Shrubland          | 0.0169 | 0.0165 |
+| Water body         |      0 |      0 |
+| Wetland            |      0 |      0 |
+
+##### 7 Dr Salim Ali WLS
+
+| basic_name         | buffer |     pa |
+| :----------------- | -----: | -----: |
+| Bare areas         | 0.0013 | 0.0007 |
+| Cropland           | 0.0875 | 0.0042 |
+| Filled value       |      0 |      0 |
+| Forest             | 0.3299 | 0.1243 |
+| Grassland          | 0.0026 |      0 |
+| Impervious surface |  0.013 |      0 |
+| Shrubland          | 0.0019 |      0 |
+| Water body         | 0.3678 | 0.5436 |
+| Wetland            |  0.196 | 0.3272 |
