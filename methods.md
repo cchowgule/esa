@@ -496,9 +496,11 @@ On average this difference represents less than 0.001% of the area of the admin.
 
 ## Data analysis methods
 
-### 1 - Grouping and aggregating data
+### 1 - Average percentage land-cover types
 
-Certain land-cover types cover a significantly greater proportion of both the PAs and buffers. Average fractional values over the entire dataset aggregated to the basic classification system show which types predominate in each PA and buffer.
+Certain land-cover types cover a significantly greater proportion of both the PAs and buffers. Average percentage values over the entire dataset aggregated to each land-cover type level show which types predominate in each PA and buffer.
+
+Apart from Dr. Salim Ali WLS, which has significant water bodies and wetlands, the ESZs are dominated by forest land-cover types in both their PAs and buffers. Cotigaon and Dr. Salim Ali WLS are the only ESZs to show more than ~1% cropland types in their buffers.
 
 ```
 import pandas as pd
@@ -540,10 +542,31 @@ eszs.sort()
 
 # Print Markdown tables of basic classification types for each ESZ
 for e in eszs:
+     b_df_buffer = basic_mean[e]['buffer'].mul(100).sort_values(ascending=False).round(2)
+     l_idx_buffer = [l for b in b_df_buffer.index.to_list() for l in level_1_mean.index.to_list() if l[0] == b]
+     l_df_buffer = level_1_mean[e]['buffer'].reindex(l_idx_buffer).mul(100).round(2).groupby(level='basic_name', sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel(0)
+     f_idx_buffer = [f for l in l_df_buffer.index.to_list() for f in fine_mean.index.to_list() if f[:2] == l]
+     f_df_buffer = fine_mean[e]['buffer'].reindex(f_idx_buffer).mul(100).round(2).groupby(level=['basic_name', 'level_1_name'], sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel([0, 1])
+     b_df_pa = basic_mean[e]['pa'].mul(100).sort_values(ascending=False).round(2)
+     l_idx_pa = [l for b in b_df_pa.index.to_list() for l in level_1_mean.index.to_list() if l[0] == b]
+     l_df_pa = level_1_mean[e]['pa'].reindex(l_idx_pa).mul(100).round(2).groupby(level='basic_name', sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel(0)
+     f_idx_pa = [f for l in l_df_pa.index.to_list() for f in fine_mean.index.to_list() if f[:2] == l]
+     f_df_pa = fine_mean[e]['pa'].reindex(f_idx_pa).mul(100).round(2).groupby(level=['basic_name', 'level_1_name'], sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel([0, 1])
      print()
      print(e.replace('_', ' '))
      print()
-     print(basic_mean[e].round(4).to_markdown())
+     print(b_df_buffer.reset_index().to_markdown(index=False))
+     print()
+     print(l_df_buffer.reset_index().to_markdown(index=False))
+     print()
+     print(f_df_buffer.reset_index().to_markdown(index=False))
+     print()
+     print(b_df_pa.reset_index().to_markdown(index=False))
+     print()
+     print(l_df_pa.reset_index().to_markdown(index=False))
+     print()
+     print(f_df_pa.reset_index().to_markdown(index=False))
+     print()
 
 # Uncomment below to save mean datasets
 # fine_mean.to_feather('feathers/fine_mean.feather')
@@ -553,112 +576,978 @@ for e in eszs:
 
 ##### 0 Mhadei WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         | 0.0002 | 0.0001 |
-| Cropland           | 0.0085 | 0.0025 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.9672 | 0.9952 |
-| Grassland          | 0.0008 | 0.0002 |
-| Impervious surface | 0.0012 | 0.0002 |
-| Shrubland          | 0.0004 | 0.0008 |
-| Water body         | 0.0134 | 0.0002 |
-| Wetland            | 0.0083 | 0.0008 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  96.72 |
+| Water body         |   1.34 |
+| Cropland           |   0.85 |
+| Wetland            |   0.83 |
+| Impervious surface |   0.12 |
+| Grassland          |   0.08 |
+| Shrubland          |   0.04 |
+| Bare areas         |   0.02 |
+| Filled value       |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  |  37.05 |
+|                    | Evergreen broadleaved forest  |  34.57 |
+|                    | Evergreen needleleaved forest |  24.47 |
+|                    | Mixed-leaf forest             |   0.61 |
+|                    | Deciduous needleleaved forest |   0.02 |
+| Water body         | Water body                    |   1.34 |
+| Cropland           | Rainfed cropland              |   0.52 |
+|                    | Irrigated cropland            |   0.33 |
+| Wetland            | Inland wetland                |   0.83 |
+|                    | Coastal wetland               |      0 |
+| Impervious surface | Impervious surface            |   0.12 |
+| Grassland          | Grassland                     |   0.08 |
+| Shrubland          | Shrubland                     |   0.04 |
+| Bare areas         | Bare areas                    |   0.01 |
+|                    | Sparse vegetation             |   0.01 |
+| Filled value       | Filled value                  |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  35.08 |
+|                    |                               | Closed deciduous broadleaved forest  |   1.97 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |  33.41 |
+|                    |                               | Closed evergreen broadleaved forest  |   1.16 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  24.43 |
+|                    |                               | Closed evergreen needleleaved forest |   0.05 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.61 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.02 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Water body         | Water body                    | Water body                           |   1.34 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |   0.42 |
+|                    |                               | Herbaceous cover cropland            |    0.1 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.33 |
+| Wetland            | Inland wetland                | Flooded flat                         |   0.39 |
+|                    |                               | Marsh                                |   0.36 |
+|                    |                               | Swamp                                |   0.09 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.12 |
+| Grassland          | Grassland                     | Grassland                            |   0.08 |
+| Shrubland          | Shrubland                     | Shrubland                            |   0.03 |
+|                    | Shrubland                     | Evergreen shrubland                  |   0.02 |
+| Bare areas         | Bare areas                    | Bare areas                           |   0.01 |
+|                    | Sparse vegetation             | Sparse vegetation                    |   0.01 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 99.52 |
+| Cropland           |  0.25 |
+| Shrubland          |  0.08 |
+| Wetland            |  0.08 |
+| Water body         |  0.02 |
+| Grassland          |  0.02 |
+| Impervious surface |  0.02 |
+| Bare areas         |  0.01 |
+| Filled value       |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | 76.24 |
+|                    | Deciduous broadleaved forest  | 11.52 |
+|                    | Evergreen needleleaved forest | 10.44 |
+|                    | Mixed-leaf forest             |  1.23 |
+|                    | Deciduous needleleaved forest |  0.09 |
+| Cropland           | Rainfed cropland              |  0.15 |
+|                    | Irrigated cropland            |   0.1 |
+| Shrubland          | Shrubland                     |  0.08 |
+| Wetland            | Inland wetland                |  0.08 |
+|                    | Coastal wetland               |     0 |
+| Water body         | Water body                    |  0.02 |
+| Grassland          | Grassland                     |  0.02 |
+| Impervious surface | Impervious surface            |  0.02 |
+| Bare areas         | Sparse vegetation             |  0.01 |
+|                    | Bare areas                    |     0 |
+| Filled value       | Filled value                  |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 75.82 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.43 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    | 10.48 |
+|                    |                               | Closed deciduous broadleaved forest  |  1.04 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  10.4 |
+|                    |                               | Closed evergreen needleleaved forest |  0.04 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  1.23 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |  0.09 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |  0.11 |
+|                    |                               | Herbaceous cover cropland            |  0.04 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.1 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |  0.07 |
+|                    |                               | Shrubland                            |     0 |
+| Wetland            | Inland wetland                | Marsh                                |  0.04 |
+|                    |                               | Swamp                                |  0.03 |
+|                    |                               | Flooded flat                         |     0 |
+|                    | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+| Water body         | Water body                    | Water body                           |  0.02 |
+| Grassland          | Grassland                     | Grassland                            |  0.02 |
+| Impervious surface | Impervious surface            | Impervious surface                   |  0.02 |
+| Bare areas         | Sparse vegetation             | Sparse vegetation                    |  0.01 |
+|                    | Bare areas                    | Bare areas                           |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
 
 ##### 1 Bhagwan Mahavir WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         |      0 |      0 |
-| Cropland           | 0.0101 | 0.0011 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.9805 | 0.9984 |
-| Grassland          | 0.0067 | 0.0002 |
-| Impervious surface | 0.0009 |      0 |
-| Shrubland          |  0.001 | 0.0003 |
-| Water body         | 0.0001 |      0 |
-| Wetland            | 0.0007 |      0 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  98.05 |
+| Cropland           |   1.01 |
+| Grassland          |   0.67 |
+| Shrubland          |    0.1 |
+| Impervious surface |   0.09 |
+| Wetland            |   0.07 |
+| Water body         |   0.01 |
+| Bare areas         |      0 |
+| Filled value       |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  |  44.35 |
+|                    | Evergreen needleleaved forest |  38.67 |
+|                    | Evergreen broadleaved forest  |  14.98 |
+|                    | Mixed-leaf forest             |   0.05 |
+|                    | Deciduous needleleaved forest |      0 |
+| Cropland           | Rainfed cropland              |   0.57 |
+|                    | Irrigated cropland            |   0.44 |
+| Grassland          | Grassland                     |   0.67 |
+| Shrubland          | Shrubland                     |    0.1 |
+| Impervious surface | Impervious surface            |   0.09 |
+| Wetland            | Inland wetland                |   0.07 |
+|                    | Coastal wetland               |      0 |
+| Water body         | Water body                    |   0.01 |
+| Bare areas         | Bare areas                    |      0 |
+|                    | Sparse vegetation             |      0 |
+| Filled value       | Filled value                  |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  43.53 |
+|                    |                               | Closed deciduous broadleaved forest  |   0.82 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  38.61 |
+|                    |                               | Closed evergreen needleleaved forest |   0.06 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |  14.55 |
+|                    |                               | Closed evergreen broadleaved forest  |   0.43 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.05 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |      0 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |   0.33 |
+|                    |                               | Herbaceous cover cropland            |   0.24 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.44 |
+| Grassland          | Grassland                     | Grassland                            |   0.67 |
+| Shrubland          | Shrubland                     | Shrubland                            |    0.1 |
+| Shrubland          |                               | Evergreen shrubland                  |      0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.09 |
+| Wetland            | Inland wetland                | Marsh                                |   0.04 |
+|                    |                               | Swamp                                |   0.02 |
+|                    |                               | Flooded flat                         |   0.01 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Water body         | Water body                    | Water body                           |   0.01 |
+| Bare areas         | Bare areas                    | Bare areas                           |      0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |      0 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 99.84 |
+| Cropland           |  0.11 |
+| Shrubland          |  0.03 |
+| Grassland          |  0.02 |
+| Impervious surface |     0 |
+| Bare areas         |     0 |
+| Filled value       |     0 |
+| Water body         |     0 |
+| Wetland            |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | 77.52 |
+|                    | Evergreen needleleaved forest | 14.89 |
+|                    | Deciduous broadleaved forest  |  6.42 |
+|                    | Mixed-leaf forest             |  0.99 |
+|                    | Deciduous needleleaved forest |  0.01 |
+| Cropland           | Irrigated cropland            |  0.06 |
+|                    | Rainfed cropland              |  0.05 |
+| Shrubland          | Shrubland                     |  0.03 |
+| Grassland          | Grassland                     |  0.02 |
+| Impervious surface | Impervious surface            |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+| Filled value       | Filled value                  |     0 |
+| Water body         | Water body                    |     0 |
+| Wetland            | Coastal wetland               |     0 |
+|                    | Inland wetland                |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 77.35 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.17 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   | 14.88 |
+|                    |                               | Closed evergreen needleleaved forest |  0.01 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  5.69 |
+|                    |                               | Closed deciduous broadleaved forest  |  0.73 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  0.99 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |  0.01 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Cropland           | Irrigated cropland            | Irrigated cropland                   |  0.06 |
+|                    | Rainfed cropland              | Rainfed cropland                     |  0.03 |
+|                    |                               | Herbaceous cover cropland            |  0.02 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |  0.03 |
+|                    |                               | Shrubland                            |     0 |
+| Grassland          | Grassland                     | Grassland                            |  0.02 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
+| Water body         | Water body                    | Water body                           |     0 |
+| Wetland            | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+|                    | Inland wetland                | Swamp                                |     0 |
+|                    |                               | Marsh                                |     0 |
+|                    |                               | Flooded flat                         |     0 |
 
 ##### 2 Mollem NP
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         | 0.0002 |      0 |
-| Cropland           | 0.0106 | 0.0012 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.9739 | 0.9979 |
-| Grassland          | 0.0041 | 0.0007 |
-| Impervious surface | 0.0088 |      0 |
-| Shrubland          | 0.0005 | 0.0002 |
-| Water body         | 0.0005 |      0 |
-| Wetland            | 0.0014 |      0 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  97.39 |
+| Cropland           |   1.06 |
+| Impervious surface |   0.88 |
+| Grassland          |   0.41 |
+| Wetland            |   0.14 |
+| Water body         |   0.05 |
+| Shrubland          |   0.05 |
+| Bare areas         |   0.02 |
+| Filled value       |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  |  44.12 |
+|                    | Evergreen needleleaved forest |  29.33 |
+|                    | Evergreen broadleaved forest  |  23.89 |
+|                    | Mixed-leaf forest             |   0.05 |
+|                    | Deciduous needleleaved forest |   0.01 |
+| Cropland           | Irrigated cropland            |   0.57 |
+|                    | Rainfed cropland              |   0.49 |
+| Impervious surface | Impervious surface            |   0.88 |
+| Grassland          | Grassland                     |   0.41 |
+| Wetland            | Inland wetland                |   0.14 |
+|                    | Coastal wetland               |      0 |
+| Water body         | Water body                    |   0.05 |
+| Shrubland          | Shrubland                     |   0.05 |
+| Bare areas         | Sparse vegetation             |   0.02 |
+|                    | Bare areas                    |      0 |
+| Filled value       | Filled value                  |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  43.15 |
+|                    |                               | Closed deciduous broadleaved forest  |   0.97 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  29.29 |
+|                    |                               | Closed evergreen needleleaved forest |   0.04 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |  23.52 |
+|                    |                               | Closed evergreen broadleaved forest  |   0.37 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.05 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.01 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Cropland           | Irrigated cropland            | Irrigated cropland                   |   0.57 |
+|                    | Rainfed cropland              | Rainfed cropland                     |   0.38 |
+|                    |                               | Herbaceous cover cropland            |   0.11 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.88 |
+| Grassland          | Grassland                     | Grassland                            |   0.41 |
+| Wetland            | Inland wetland                | Marsh                                |   0.11 |
+|                    |                               | Flooded flat                         |   0.02 |
+|                    |                               | Swamp                                |   0.01 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Water body         | Water body                    | Water body                           |   0.05 |
+| Shrubland          | Shrubland                     | Shrubland                            |   0.05 |
+|                    |                               | Evergreen shrubland                  |      0 |
+| Bare areas         | Sparse vegetation             | Sparse vegetation                    |   0.02 |
+|                    | Bare areas                    | Bare areas                           |      0 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 99.79 |
+| Cropland           |  0.12 |
+| Grassland          |  0.07 |
+| Shrubland          |  0.02 |
+| Wetland            |     0 |
+| Impervious surface |     0 |
+| Bare areas         |     0 |
+| Water body         |     0 |
+| Filled value       |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  |  82.5 |
+|                    | Evergreen needleleaved forest | 12.08 |
+|                    | Deciduous broadleaved forest  |  4.81 |
+|                    | Mixed-leaf forest             |   0.4 |
+|                    | Deciduous needleleaved forest |  0.01 |
+| Cropland           | Irrigated cropland            |   0.1 |
+|                    | Rainfed cropland              |  0.02 |
+| Grassland          | Grassland                     |  0.07 |
+| Shrubland          | Shrubland                     |  0.02 |
+| Wetland            | Coastal wetland               |     0 |
+|                    | Inland wetland                |     0 |
+| Impervious surface | Impervious surface            |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+| Water body         | Water body                    |     0 |
+| Filled value       | Filled value                  |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 82.39 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.12 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   | 12.07 |
+|                    |                               | Closed evergreen needleleaved forest |  0.01 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  4.12 |
+|                    |                               | Closed deciduous broadleaved forest  |  0.69 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.4 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |  0.01 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Cropland           | Irrigated cropland            | Irrigated cropland                   |   0.1 |
+|                    | Rainfed cropland              | Rainfed cropland                     |  0.02 |
+|                    |                               | Herbaceous cover cropland            |     0 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+| Grassland          | Grassland                     | Grassland                            |  0.07 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |  0.02 |
+|                    |                               | Shrubland                            |     0 |
+| Wetland            | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+|                    | Inland wetland                | Swamp                                |     0 |
+|                    |                               | Marsh                                |     0 |
+|                    |                               | Flooded flat                         |     0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
+| Water body         | Water body                    | Water body                           |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
 
 ##### 3 Bhagwan Mahavir WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         | 0.0004 |      0 |
-| Cropland           | 0.0185 |  0.002 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.9599 | 0.9963 |
-| Grassland          | 0.0096 | 0.0013 |
-| Impervious surface | 0.0019 | 0.0002 |
-| Shrubland          | 0.0019 | 0.0002 |
-| Water body         |  0.004 |      0 |
-| Wetland            | 0.0037 | 0.0001 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  95.99 |
+| Cropland           |   1.85 |
+| Grassland          |   0.96 |
+| Water body         |    0.4 |
+| Wetland            |   0.37 |
+| Shrubland          |   0.19 |
+| Impervious surface |   0.19 |
+| Bare areas         |   0.04 |
+| Filled value       |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  |  66.77 |
+|                    | Evergreen needleleaved forest |  24.03 |
+|                    | Evergreen broadleaved forest  |   5.14 |
+|                    | Mixed-leaf forest             |   0.04 |
+|                    | Deciduous needleleaved forest |   0.01 |
+| Cropland           | Rainfed cropland              |   1.03 |
+|                    | Irrigated cropland            |   0.83 |
+| Grassland          | Grassland                     |   0.96 |
+| Water body         | Water body                    |    0.4 |
+| Wetland            | Inland wetland                |   0.37 |
+|                    | Coastal wetland               |      0 |
+| Shrubland          | Shrubland                     |   0.19 |
+| Impervious surface | Impervious surface            |   0.19 |
+| Bare areas         | Sparse vegetation             |   0.03 |
+|                    | Bare areas                    |   0.01 |
+| Filled value       | Filled value                  |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  65.82 |
+|                    |                               | Closed deciduous broadleaved forest  |   0.95 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  23.99 |
+|                    |                               | Closed evergreen needleleaved forest |   0.04 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |   4.57 |
+|                    |                               | Closed evergreen broadleaved forest  |   0.57 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.04 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.01 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |   0.74 |
+|                    |                               | Herbaceous cover cropland            |   0.29 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.83 |
+| Grassland          | Grassland                     | Grassland                            |   0.96 |
+| Water body         | Water body                    | Water body                           |    0.4 |
+| Wetland            | Inland wetland                | Marsh                                |   0.19 |
+|                    |                               | Flooded flat                         |   0.11 |
+|                    |                               | Swamp                                |   0.07 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Shrubland          | Shrubland                     | Shrubland                            |   0.19 |
+| Shrubland          |                               | Evergreen shrubland                  |      0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.19 |
+| Bare areas         | Sparse vegetation             | Sparse vegetation                    |   0.03 |
+|                    | Bare areas                    | Bare areas                           |   0.01 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 99.63 |
+| Cropland           |   0.2 |
+| Grassland          |  0.13 |
+| Impervious surface |  0.02 |
+| Shrubland          |  0.02 |
+| Wetland            |  0.01 |
+| Bare areas         |     0 |
+| Filled value       |     0 |
+| Water body         |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen needleleaved forest | 34.39 |
+|                    | Evergreen broadleaved forest  | 34.21 |
+|                    | Deciduous broadleaved forest  | 30.82 |
+|                    | Mixed-leaf forest             |  0.21 |
+|                    | Deciduous needleleaved forest |     0 |
+| Cropland           | Rainfed cropland              |  0.13 |
+|                    | Irrigated cropland            |  0.07 |
+| Grassland          | Grassland                     |  0.13 |
+| Impervious surface | Impervious surface            |  0.02 |
+| Shrubland          | Shrubland                     |  0.02 |
+| Wetland            | Inland wetland                |  0.01 |
+|                    | Coastal wetland               |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+| Filled value       | Filled value                  |     0 |
+| Water body         | Water body                    |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen needleleaved forest | Open evergreen needleleaved forest   | 34.37 |
+|                    |                               | Closed evergreen needleleaved forest |  0.02 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 33.89 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.32 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    | 29.96 |
+|                    |                               | Closed deciduous broadleaved forest  |  0.86 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  0.21 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |     0 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Cropland           | Rainfed cropland              | Herbaceous cover cropland            |  0.09 |
+|                    |                               | Rainfed cropland                     |  0.04 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |  0.07 |
+| Grassland          | Grassland                     | Grassland                            |  0.13 |
+| Impervious surface | Impervious surface            | Impervious surface                   |  0.02 |
+| Shrubland          | Shrubland                     | Shrubland                            |  0.01 |
+|                    |                               | Evergreen shrubland                  |     0 |
+| Wetland            | Inland wetland                | Marsh                                |  0.01 |
+|                    |                               | Swamp                                |     0 |
+|                    |                               | Flooded flat                         |     0 |
+|                    | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
+| Water body         | Water body                    | Water body                           |     0 |
 
 ##### 4 Bondla WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         |      0 |      0 |
-| Cropland           | 0.0014 | 0.0001 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.9965 | 0.9997 |
-| Grassland          | 0.0001 |      0 |
-| Impervious surface |  0.002 |      0 |
-| Shrubland          | 0.0001 |      0 |
-| Water body         |      0 |      0 |
-| Wetland            |      0 | 0.0001 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  99.65 |
+| Impervious surface |    0.2 |
+| Cropland           |   0.14 |
+| Shrubland          |   0.01 |
+| Grassland          |   0.01 |
+| Wetland            |      0 |
+| Bare areas         |      0 |
+| Filled value       |      0 |
+| Water body         |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Evergreen needleleaved forest |   43.7 |
+|                    | Evergreen broadleaved forest  |  36.03 |
+|                    | Deciduous broadleaved forest  |  19.42 |
+|                    | Mixed-leaf forest             |   0.49 |
+|                    | Deciduous needleleaved forest |      0 |
+| Impervious surface | Impervious surface            |    0.2 |
+| Cropland           | Rainfed cropland              |   0.11 |
+|                    | Irrigated cropland            |   0.03 |
+| Shrubland          | Shrubland                     |   0.01 |
+| Grassland          | Grassland                     |   0.01 |
+| Wetland            | Coastal wetland               |      0 |
+|                    | Inland wetland                |      0 |
+| Bare areas         | Bare areas                    |      0 |
+|                    | Sparse vegetation             |      0 |
+| Filled value       | Filled value                  |      0 |
+| Water body         | Water body                    |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  43.67 |
+|                    |                               | Closed evergreen needleleaved forest |   0.04 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |  35.93 |
+|                    |                               | Closed evergreen broadleaved forest  |    0.1 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  18.11 |
+|                    |                               | Closed deciduous broadleaved forest  |   1.31 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.49 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |      0 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |    0.2 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |    0.1 |
+|                    |                               | Herbaceous cover cropland            |   0.01 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.03 |
+| Shrubland          | Shrubland                     | Shrubland                            |      0 |
+| Shrubland          |                               | Evergreen shrubland                  |      0 |
+| Grassland          | Grassland                     | Grassland                            |   0.01 |
+| Wetland            | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+|                    | Inland wetland                | Swamp                                |      0 |
+|                    |                               | Marsh                                |      0 |
+|                    |                               | Flooded flat                         |      0 |
+| Bare areas         | Bare areas                    | Bare areas                           |      0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |      0 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+| Water body         | Water body                    | Water body                           |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 99.97 |
+| Wetland            |  0.01 |
+| Cropland           |  0.01 |
+| Water body         |     0 |
+| Grassland          |     0 |
+| Shrubland          |     0 |
+| Bare areas         |     0 |
+| Filled value       |     0 |
+| Impervious surface |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen needleleaved forest | 50.73 |
+|                    | Evergreen broadleaved forest  | 40.38 |
+|                    | Deciduous broadleaved forest  |  8.69 |
+|                    | Mixed-leaf forest             |  0.17 |
+|                    | Deciduous needleleaved forest |     0 |
+| Wetland            | Inland wetland                |  0.01 |
+|                    | Coastal wetland               |     0 |
+| Cropland           | Rainfed cropland              |  0.01 |
+|                    | Irrigated cropland            |     0 |
+| Water body         | Water body                    |     0 |
+| Grassland          | Grassland                     |     0 |
+| Shrubland          | Shrubland                     |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+| Filled value       | Filled value                  |     0 |
+| Impervious surface | Impervious surface            |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen needleleaved forest | Open evergreen needleleaved forest   | 50.72 |
+|                    |                               | Closed evergreen needleleaved forest |  0.02 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 40.32 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.07 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  6.62 |
+|                    |                               | Closed deciduous broadleaved forest  |  2.07 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  0.17 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |     0 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Wetland            | Inland wetland                | Swamp                                |  0.01 |
+|                    |                               | Marsh                                |     0 |
+|                    |                               | Flooded flat                         |     0 |
+|                    | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |  0.01 |
+|                    |                               | Herbaceous cover cropland            |     0 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |     0 |
+| Water body         | Water body                    | Water body                           |     0 |
+| Grassland          | Grassland                     | Grassland                            |     0 |
+| Shrubland          | Shrubland                     | Shrubland                            |     0 |
+|                    |                               | Evergreen shrubland                  |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
 
 ##### 5 Netravali WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         | 0.0004 |      0 |
-| Cropland           | 0.0141 | 0.0016 |
-| Filled value       | 0.0002 | 0.0001 |
-| Forest             | 0.8129 | 0.9803 |
-| Grassland          | 0.0061 | 0.0011 |
-| Impervious surface | 0.0003 |      0 |
-| Shrubland          | 0.0114 |  0.015 |
-| Water body         | 0.1094 | 0.0005 |
-| Wetland            | 0.0452 | 0.0013 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |  81.29 |
+| Water body         |  10.94 |
+| Wetland            |   4.52 |
+| Cropland           |   1.41 |
+| Shrubland          |   1.14 |
+| Grassland          |   0.61 |
+| Bare areas         |   0.04 |
+| Impervious surface |   0.03 |
+| Filled value       |   0.02 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  |  33.14 |
+|                    | Evergreen needleleaved forest |  26.02 |
+|                    | Evergreen broadleaved forest  |  21.41 |
+|                    | Mixed-leaf forest             |   0.69 |
+|                    | Deciduous needleleaved forest |   0.03 |
+| Water body         | Water body                    |  10.94 |
+| Wetland            | Inland wetland                |   4.52 |
+| Wetland            | Coastal wetland               |      0 |
+| Cropland           | Rainfed cropland              |   0.83 |
+|                    | Irrigated cropland            |   0.58 |
+| Shrubland          | Shrubland                     |   1.14 |
+| Grassland          | Grassland                     |   0.61 |
+| Bare areas         | Bare areas                    |   0.03 |
+|                    | Sparse vegetation             |   0.02 |
+| Impervious surface | Impervious surface            |   0.03 |
+| Filled value       | Filled value                  |   0.02 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  31.18 |
+|                    |                               | Closed deciduous broadleaved forest  |   1.97 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  25.96 |
+|                    |                               | Closed evergreen needleleaved forest |   0.06 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |  20.74 |
+|                    |                               | Closed evergreen broadleaved forest  |   0.67 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.69 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.02 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Water body         | Water body                    | Water body                           |  10.94 |
+| Wetland            | Inland wetland                | Flooded flat                         |   3.28 |
+|                    |                               | Marsh                                |   1.11 |
+|                    |                               | Swamp                                |   0.13 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |   0.61 |
+|                    |                               | Herbaceous cover cropland            |   0.23 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.58 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |   0.94 |
+|                    |                               | Shrubland                            |    0.2 |
+| Grassland          | Grassland                     | Grassland                            |   0.61 |
+| Bare areas         | Bare areas                    | Bare areas                           |   0.03 |
+|                    | Sparse vegetation             | Sparse vegetation                    |   0.02 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.03 |
+| Filled value       | Filled value                  | Filled value                         |   0.02 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 98.03 |
+| Shrubland          |   1.5 |
+| Cropland           |  0.16 |
+| Wetland            |  0.13 |
+| Grassland          |  0.11 |
+| Water body         |  0.05 |
+| Filled value       |  0.01 |
+| Impervious surface |     0 |
+| Bare areas         |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | 73.96 |
+|                    | Evergreen needleleaved forest | 16.12 |
+|                    | Deciduous broadleaved forest  |  7.43 |
+|                    | Mixed-leaf forest             |  0.49 |
+|                    | Deciduous needleleaved forest |  0.03 |
+| Shrubland          | Shrubland                     |   1.5 |
+| Cropland           | Rainfed cropland              |  0.11 |
+|                    | Irrigated cropland            |  0.05 |
+| Wetland            | Inland wetland                |  0.13 |
+|                    | Coastal wetland               |     0 |
+| Grassland          | Grassland                     |  0.11 |
+| Water body         | Water body                    |  0.05 |
+| Filled value       | Filled value                  |  0.01 |
+| Impervious surface | Impervious surface            |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 73.78 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.18 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  16.1 |
+|                    |                               | Closed evergreen needleleaved forest |  0.02 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  6.28 |
+|                    |                               | Closed deciduous broadleaved forest  |  1.15 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  0.49 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |  0.03 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |  1.47 |
+|                    |                               | Shrubland                            |  0.03 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |  0.06 |
+|                    |                               | Herbaceous cover cropland            |  0.05 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |  0.05 |
+| Wetland            | Inland wetland                | Flooded flat                         |  0.08 |
+|                    |                               | Marsh                                |  0.04 |
+|                    |                               | Swamp                                |  0.01 |
+|                    | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+| Grassland          | Grassland                     | Grassland                            |  0.11 |
+| Water body         | Water body                    | Water body                           |  0.05 |
+| Filled value       | Filled value                  | Filled value                         |  0.01 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
 
 ##### 6 Cotigaon WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         |      0 |      0 |
-| Cropland           | 0.0539 | 0.0054 |
-| Filled value       |  0.001 | 0.0014 |
-| Forest             |  0.926 | 0.9766 |
-| Grassland          | 0.0016 |      0 |
-| Impervious surface | 0.0005 |      0 |
-| Shrubland          | 0.0169 | 0.0165 |
-| Water body         |      0 |      0 |
-| Wetland            |      0 |      0 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Forest             |   92.6 |
+| Cropland           |   5.39 |
+| Shrubland          |   1.69 |
+| Grassland          |   0.16 |
+| Filled value       |    0.1 |
+| Impervious surface |   0.05 |
+| Bare areas         |      0 |
+| Water body         |      0 |
+| Wetland            |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Forest             | Evergreen needleleaved forest |  37.03 |
+|                    | Deciduous broadleaved forest  |  28.45 |
+|                    | Evergreen broadleaved forest  |  25.26 |
+|                    | Mixed-leaf forest             |   1.75 |
+|                    | Deciduous needleleaved forest |   0.11 |
+| Cropland           | Rainfed cropland              |   4.96 |
+|                    | Irrigated cropland            |   0.43 |
+| Shrubland          | Shrubland                     |   1.69 |
+| Grassland          | Grassland                     |   0.16 |
+| Filled value       | Filled value                  |    0.1 |
+| Impervious surface | Impervious surface            |   0.05 |
+| Bare areas         | Bare areas                    |      0 |
+|                    | Sparse vegetation             |      0 |
+| Water body         | Water body                    |      0 |
+| Wetland            | Coastal wetland               |      0 |
+|                    | Inland wetland                |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Forest             | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  36.92 |
+|                    |                               | Closed evergreen needleleaved forest |   0.11 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  25.53 |
+|                    |                               | Closed deciduous broadleaved forest  |   2.92 |
+|                    | Evergreen broadleaved forest  | Open evergreen broadleaved forest    |   24.4 |
+|                    |                               | Closed evergreen broadleaved forest  |   0.86 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   1.75 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.09 |
+|                    |                               | Open deciduous needleleaved forest   |   0.02 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |    2.6 |
+|                    |                               | Herbaceous cover cropland            |   2.11 |
+|                    |                               | Tree or shrub cover cropland         |   0.26 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   0.43 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |   1.64 |
+|                    |                               | Shrubland                            |   0.05 |
+| Grassland          | Grassland                     | Grassland                            |   0.16 |
+| Filled value       | Filled value                  | Filled value                         |    0.1 |
+| Impervious surface | Impervious surface            | Impervious surface                   |   0.05 |
+| Bare areas         | Bare areas                    | Bare areas                           |      0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |      0 |
+| Water body         | Water body                    | Water body                           |      0 |
+| Wetland            | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+|                    | Inland wetland                | Swamp                                |      0 |
+|                    |                               | Marsh                                |      0 |
+|                    |                               | Flooded flat                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Forest             | 97.66 |
+| Shrubland          |  1.65 |
+| Cropland           |  0.54 |
+| Filled value       |  0.14 |
+| Impervious surface |     0 |
+| Grassland          |     0 |
+| Bare areas         |     0 |
+| Water body         |     0 |
+| Wetland            |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | 69.26 |
+|                    | Evergreen needleleaved forest | 18.92 |
+|                    | Deciduous broadleaved forest  |  8.46 |
+|                    | Mixed-leaf forest             |  0.97 |
+|                    | Deciduous needleleaved forest |  0.05 |
+| Shrubland          | Shrubland                     |  1.65 |
+| Cropland           | Rainfed cropland              |  0.52 |
+|                    | Irrigated cropland            |  0.02 |
+| Filled value       | Filled value                  |  0.14 |
+| Impervious surface | Impervious surface            |     0 |
+| Grassland          | Grassland                     |     0 |
+| Bare areas         | Bare areas                    |     0 |
+|                    | Sparse vegetation             |     0 |
+| Water body         | Water body                    |     0 |
+| Wetland            | Coastal wetland               |     0 |
+|                    | Inland wetland                |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 69.06 |
+|                    |                               | Closed evergreen broadleaved forest  |  0.21 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   | 18.88 |
+|                    |                               | Closed evergreen needleleaved forest |  0.03 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  6.72 |
+|                    |                               | Closed deciduous broadleaved forest  |  1.74 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |  0.97 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |  0.03 |
+|                    |                               | Open deciduous needleleaved forest   |  0.02 |
+| Shrubland          | Shrubland                     | Evergreen shrubland                  |  1.65 |
+|                    |                               | Shrubland                            |     0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |  0.34 |
+|                    |                               | Herbaceous cover cropland            |  0.13 |
+|                    |                               | Tree or shrub cover cropland         |  0.05 |
+|                    | Irrigated cropland            | Irrigated cropland                   |  0.02 |
+| Filled value       | Filled value                  | Filled value                         |  0.14 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
+| Grassland          | Grassland                     | Grassland                            |     0 |
+| Bare areas         | Bare areas                    | Bare areas                           |     0 |
+|                    | Sparse vegetation             | Sparse vegetation                    |     0 |
+| Water body         | Water body                    | Water body                           |     0 |
+| Wetland            | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+|                    | Inland wetland                | Swamp                                |     0 |
+|                    |                               | Marsh                                |     0 |
+|                    |                               | Flooded flat                         |     0 |
 
 ##### 7 Dr Salim Ali WLS
 
-| basic_name         | buffer |     pa |
-| :----------------- | -----: | -----: |
-| Bare areas         | 0.0013 | 0.0007 |
-| Cropland           | 0.0875 | 0.0042 |
-| Filled value       |      0 |      0 |
-| Forest             | 0.3299 | 0.1243 |
-| Grassland          | 0.0026 |      0 |
-| Impervious surface |  0.013 |      0 |
-| Shrubland          | 0.0019 |      0 |
-| Water body         | 0.3678 | 0.5436 |
-| Wetland            |  0.196 | 0.3272 |
+| basic_name         | buffer |
+| :----------------- | -----: |
+| Water body         |  36.78 |
+| Forest             |  32.99 |
+| Wetland            |   19.6 |
+| Cropland           |   8.75 |
+| Impervious surface |    1.3 |
+| Grassland          |   0.26 |
+| Shrubland          |   0.19 |
+| Bare areas         |   0.13 |
+| Filled value       |      0 |
+
+| basic_name         | level_1_name                  | buffer |
+| :----------------- | :---------------------------- | -----: |
+| Water body         | Water body                    |  36.78 |
+| Forest             | Deciduous broadleaved forest  |  30.39 |
+|                    | Evergreen broadleaved forest  |   1.31 |
+|                    | Evergreen needleleaved forest |   1.21 |
+|                    | Mixed-leaf forest             |   0.07 |
+|                    | Deciduous needleleaved forest |   0.01 |
+| Wetland            | Inland wetland                |  19.59 |
+|                    | Coastal wetland               |   0.01 |
+| Cropland           | Rainfed cropland              |   5.14 |
+|                    | Irrigated cropland            |   3.61 |
+| Impervious surface | Impervious surface            |    1.3 |
+| Grassland          | Grassland                     |   0.26 |
+| Shrubland          | Shrubland                     |   0.19 |
+| Bare areas         | Bare areas                    |   0.08 |
+|                    | Sparse vegetation             |   0.05 |
+| Filled value       | Filled value                  |      0 |
+
+| basic_name         | level_1_name                  | fine_name                            | buffer |
+| :----------------- | :---------------------------- | :----------------------------------- | -----: |
+| Water body         | Water body                    | Water body                           |  36.78 |
+| Forest             | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  29.87 |
+|                    |                               | Closed deciduous broadleaved forest  |   0.52 |
+|                    | Evergreen broadleaved forest  | Closed evergreen broadleaved forest  |   0.66 |
+|                    |                               | Open evergreen broadleaved forest    |   0.65 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |   1.18 |
+|                    |                               | Closed evergreen needleleaved forest |   0.03 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |   0.07 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |   0.01 |
+|                    |                               | Open deciduous needleleaved forest   |      0 |
+| Wetland            | Inland wetland                | Marsh                                |  11.11 |
+|                    |                               | Flooded flat                         |   4.64 |
+|                    |                               | Swamp                                |   3.85 |
+|                    | Coastal wetland               | Mangrove                             |      0 |
+|                    |                               | Tidal flat                           |      0 |
+| Cropland           | Rainfed cropland              | Rainfed cropland                     |   4.97 |
+|                    |                               | Herbaceous cover cropland            |   0.17 |
+|                    |                               | Tree or shrub cover cropland         |      0 |
+|                    | Irrigated cropland            | Irrigated cropland                   |   3.61 |
+| Impervious surface | Impervious surface            | Impervious surface                   |    1.3 |
+| Grassland          | Grassland                     | Grassland                            |   0.26 |
+| Shrubland          | Shrubland                     | Shrubland                            |   0.19 |
+|                    |                               | Evergreen shrubland                  |      0 |
+| Bare areas         | Bare areas                    | Bare areas                           |   0.08 |
+|                    | Sparse vegetation             | Sparse vegetation                    |   0.05 |
+| Filled value       | Filled value                  | Filled value                         |      0 |
+
+| basic_name         |    pa |
+| :----------------- | ----: |
+| Water body         | 54.36 |
+| Wetland            | 32.72 |
+| Forest             | 12.43 |
+| Cropland           |  0.42 |
+| Bare areas         |  0.07 |
+| Grassland          |     0 |
+| Filled value       |     0 |
+| Shrubland          |     0 |
+| Impervious surface |     0 |
+
+| basic_name         | level_1_name                  |    pa |
+| :----------------- | :---------------------------- | ----: |
+| Water body         | Water body                    | 54.36 |
+| Wetland            | Inland wetland                | 32.72 |
+|                    | Coastal wetland               |     0 |
+| Forest             | Evergreen broadleaved forest  | 12.32 |
+|                    | Deciduous broadleaved forest  |  0.08 |
+|                    | Evergreen needleleaved forest |  0.03 |
+|                    | Deciduous needleleaved forest |     0 |
+|                    | Mixed-leaf forest             |     0 |
+| Cropland           | Irrigated cropland            |  0.41 |
+|                    | Rainfed cropland              |  0.01 |
+| Bare areas         | Sparse vegetation             |  0.07 |
+|                    | Bare areas                    |     0 |
+| Grassland          | Grassland                     |     0 |
+| Filled value       | Filled value                  |     0 |
+| Shrubland          | Shrubland                     |     0 |
+| Impervious surface | Impervious surface            |     0 |
+
+| basic_name         | level_1_name                  | fine_name                            |    pa |
+| :----------------- | :---------------------------- | :----------------------------------- | ----: |
+| Water body         | Water body                    | Water body                           | 54.36 |
+| Wetland            | Inland wetland                | Swamp                                | 17.44 |
+|                    |                               | Marsh                                | 11.17 |
+|                    |                               | Flooded flat                         |  4.11 |
+|                    | Coastal wetland               | Mangrove                             |     0 |
+|                    |                               | Tidal flat                           |     0 |
+| Forest             | Evergreen broadleaved forest  | Open evergreen broadleaved forest    | 12.32 |
+|                    |                               | Closed evergreen broadleaved forest  |     0 |
+|                    | Deciduous broadleaved forest  | Open deciduous broadleaved forest    |  0.08 |
+|                    |                               | Closed deciduous broadleaved forest  |     0 |
+|                    | Evergreen needleleaved forest | Open evergreen needleleaved forest   |  0.03 |
+|                    |                               | Closed evergreen needleleaved forest |     0 |
+|                    | Deciduous needleleaved forest | Closed deciduous needleleaved forest |     0 |
+|                    |                               | Open deciduous needleleaved forest   |     0 |
+|                    | Mixed-leaf forest             | Closed mixed-leaf forest             |     0 |
+| Cropland           | Irrigated cropland            | Irrigated cropland                   |  0.41 |
+|                    | Rainfed cropland              | Rainfed cropland                     |  0.01 |
+|                    |                               | Herbaceous cover cropland            |     0 |
+|                    |                               | Tree or shrub cover cropland         |     0 |
+| Bare areas         | Sparse vegetation             | Sparse vegetation                    |  0.07 |
+|                    | Bare areas                    | Bare areas                           |     0 |
+| Grassland          | Grassland                     | Grassland                            |     0 |
+| Filled value       | Filled value                  | Filled value                         |     0 |
+| Shrubland          | Shrubland                     | Shrubland                            |     0 |
+|                    |                               | Evergreen shrubland                  |     0 |
+| Impervious surface | Impervious surface            | Impervious surface                   |     0 |
+
+### 2 - Percentage change in land-cover over time
