@@ -555,11 +555,9 @@ As the table above shows there is a difference between the area of any given adm
 
 On average this difference represents less than 0.001% of the area of the admin. unit, granted with a significant variability in the statistic, an indication of a reasonably good fit between land-cover area and actual area.
 
-<!--TODO: clean up from here on -->
-
 ## Data analysis methods
 
-### 1 - Average percentage land-cover types
+### 1 - Average percentage of land-cover types
 
 Certain land-cover types cover a significantly greater proportion of both the PAs and buffers. Average percentage values over the entire dataset aggregated to each land-cover type level show which types predominate in each PA and buffer.
 
@@ -573,19 +571,17 @@ land_cover_area = pd.read_feather('feathers/land_cover_area.feather')
 
 lc_types = pd.read_feather('feathers/GLC_FCS30D_landcover_types.feather')
 
-areas = pd.read_feather('feathers/areas.feather')
+# Average all years' data grouped by ESZ, part, village name
+avg_cover = land_cover_area.groupby(['esz', 'part', 'name']).mean()
 
-# Sum all admin. units grouped by ESZ PA and buffer
-land_cover_area = land_cover_area.groupby(['esz', 'part', 'year']).sum()
-
-areas = areas.groupby(['esz', 'part', 'year']).sum()
+# Group by village and sum
+avg_cover = avg_cover.groupby(['esz', 'part']).sum(min_count=1)
 
 # Convert area to fraction of total
-land_cover_fraction = land_cover_area.div(areas['land_cover'], axis=0)
+avg_fraction_cover = avg_cover.div(avg_cover.sum(axis=1, min_count=1), axis=0)
 
-# Average all years' land-cover fractions grouped by ESZ PA and buffer
 # Transpose
-fine_mean = land_cover_fraction.groupby(['esz', 'part']).mean().T
+fine_mean = avg_fraction_cover.T
 
 # Reset index to names of land-cover types
 fine_mean[['basic_name', 'level_1_name', 'fine_name']] = lc_types[['basic_classification_system', 'level_1_validation_system', 'fine_classification_system']]
@@ -595,9 +591,9 @@ fine_mean.loc[('XXX', 'XXX', '0'), ['basic_name', 'level_1_name', 'fine_name']] 
 fine_mean = fine_mean.set_index(['basic_name', 'level_1_name', 'fine_name'])
 
 # Aggregate means by land-cover aggregation levels
-level_1_mean = fine_mean.groupby(['basic_name', 'level_1_name']).sum()
+level_1_mean = fine_mean.groupby(['basic_name', 'level_1_name']).sum(min_count=1)
 
-basic_mean = fine_mean.groupby(['basic_name']).sum()
+basic_mean = fine_mean.groupby(['basic_name']).sum(min_count=1)
 
 eszs = list(set(x[0] for x in fine_mean.columns.to_list()))
 
@@ -606,29 +602,13 @@ eszs.sort()
 # Print Markdown tables of basic classification types for each ESZ
 for e in eszs:
      b_df_buffer = basic_mean[e]['buffer'].mul(100).sort_values(ascending=False).round(2)
-     l_idx_buffer = [l for b in b_df_buffer.index.to_list() for l in level_1_mean.index.to_list() if l[0] == b]
-     l_df_buffer = level_1_mean[e]['buffer'].reindex(l_idx_buffer).mul(100).round(2).groupby(level='basic_name', sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel(0)
-     f_idx_buffer = [f for l in l_df_buffer.index.to_list() for f in fine_mean.index.to_list() if f[:2] == l]
-     f_df_buffer = fine_mean[e]['buffer'].reindex(f_idx_buffer).mul(100).round(2).groupby(level=['basic_name', 'level_1_name'], sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel([0, 1])
      b_df_pa = basic_mean[e]['pa'].mul(100).sort_values(ascending=False).round(2)
-     l_idx_pa = [l for b in b_df_pa.index.to_list() for l in level_1_mean.index.to_list() if l[0] == b]
-     l_df_pa = level_1_mean[e]['pa'].reindex(l_idx_pa).mul(100).round(2).groupby(level='basic_name', sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel(0)
-     f_idx_pa = [f for l in l_df_pa.index.to_list() for f in fine_mean.index.to_list() if f[:2] == l]
-     f_df_pa = fine_mean[e]['pa'].reindex(f_idx_pa).mul(100).round(2).groupby(level=['basic_name', 'level_1_name'], sort=False).apply(lambda x: x.sort_values(ascending=False)).droplevel([0, 1])
      print()
      print(e.replace('_', ' '))
      print()
      print(b_df_buffer.reset_index().to_markdown(index=False))
      print()
-     print(l_df_buffer.reset_index().to_markdown(index=False))
-     print()
-     print(f_df_buffer.reset_index().to_markdown(index=False))
-     print()
      print(b_df_pa.reset_index().to_markdown(index=False))
-     print()
-     print(l_df_pa.reset_index().to_markdown(index=False))
-     print()
-     print(f_df_pa.reset_index().to_markdown(index=False))
      print()
 
 # Uncomment below to save mean datasets
@@ -639,211 +619,211 @@ for e in eszs:
 
 ##### 0 Mhadei WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  96.69 |
-| Water body         |    1.3 |
-| Cropland           |   0.87 |
+| Forest             |  96.48 |
+| Water body         |   1.36 |
+| Cropland           |   0.91 |
 | Wetland            |   0.86 |
-| Impervious surface |    0.1 |
-| Grassland          |   0.09 |
-| Shrubland          |   0.08 |
-| Bare areas         |   0.01 |
-| Filled value       |      0 |
+| Shrubland          |   0.14 |
+| Impervious surface |   0.14 |
+| Grassland          |   0.07 |
+| Bare areas         |   0.05 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 99.35 |
-| Cropland           |  0.25 |
-| Shrubland          |  0.25 |
-| Wetland            |  0.07 |
+| Forest             | 99.24 |
+| Shrubland          |  0.32 |
+| Cropland           |  0.27 |
+| Wetland            |  0.08 |
 | Grassland          |  0.03 |
-| Water body         |  0.02 |
+| Water body         |  0.03 |
 | Impervious surface |  0.02 |
-| Bare areas         |  0.01 |
-| Filled value       |     0 |
+| Bare areas         |  0.02 |
+| Filled value       |     - |
 
 ##### 1 Bhagwan Mahavir WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  98.26 |
-| Cropland           |   0.94 |
-| Grassland          |   0.59 |
-| Shrubland          |   0.08 |
-| Impervious surface |   0.06 |
-| Wetland            |   0.06 |
-| Water body         |   0.01 |
-| Bare areas         |      0 |
-| Filled value       |      0 |
+| Forest             |  97.85 |
+| Cropland           |   1.10 |
+| Grassland          |   0.72 |
+| Shrubland          |   0.11 |
+| Impervious surface |   0.11 |
+| Wetland            |   0.08 |
+| Water body         |   0.02 |
+| Bare areas         |   0.01 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 99.77 |
-| Shrubland          |  0.11 |
-| Cropland           |   0.1 |
+| Forest             | 99.74 |
+| Shrubland          |  0.12 |
+| Cropland           |  0.12 |
 | Grassland          |  0.02 |
-| Impervious surface |     0 |
-| Bare areas         |     0 |
-| Filled value       |     0 |
-| Water body         |     0 |
-| Wetland            |     0 |
+| Impervious surface |  0.00 |
+| Bare areas         |     - |
+| Filled value       |     - |
+| Water body         |     - |
+| Wetland            |     - |
 
 ##### 2 Mollem NP
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  97.57 |
-| Cropland           |   1.14 |
-| Impervious surface |   0.69 |
-| Grassland          |   0.41 |
-| Wetland            |   0.11 |
-| Shrubland          |   0.04 |
-| Water body         |   0.03 |
-| Bare areas         |   0.01 |
-| Filled value       |      0 |
+| Forest             |  96.85 |
+| Cropland           |   1.23 |
+| Impervious surface |   1.19 |
+| Grassland          |   0.33 |
+| Wetland            |   0.22 |
+| Water body         |   0.10 |
+| Shrubland          |   0.05 |
+| Bare areas         |   0.03 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 99.76 |
-| Cropland           |   0.1 |
-| Grassland          |  0.08 |
-| Shrubland          |  0.06 |
-| Wetland            |     0 |
-| Impervious surface |     0 |
-| Bare areas         |     0 |
-| Water body         |     0 |
-| Filled value       |     0 |
+| Forest             | 99.71 |
+| Cropland           |  0.12 |
+| Shrubland          |  0.09 |
+| Grassland          |  0.07 |
+| Wetland            |  0.00 |
+| Impervious surface |  0.00 |
+| Bare areas         |  0.00 |
+| Water body         |  0.00 |
+| Filled value       |     - |
 
 ##### 3 Bhagwan Mahavir WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  96.44 |
-| Cropland           |   1.82 |
-| Grassland          |   0.83 |
-| Wetland            |   0.28 |
-| Water body         |   0.28 |
-| Shrubland          |   0.17 |
-| Impervious surface |   0.14 |
-| Bare areas         |   0.03 |
-| Filled value       |      0 |
+| Forest             |  95.61 |
+| Cropland           |   1.88 |
+| Grassland          |   0.98 |
+| Water body         |   0.56 |
+| Wetland            |   0.48 |
+| Shrubland          |   0.21 |
+| Impervious surface |   0.21 |
+| Bare areas         |   0.08 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 99.63 |
-| Cropland           |  0.19 |
-| Grassland          |  0.13 |
+| Forest             | 99.59 |
+| Cropland           |  0.21 |
+| Grassland          |  0.14 |
 | Shrubland          |  0.03 |
-| Impervious surface |  0.01 |
+| Impervious surface |  0.02 |
 | Wetland            |  0.01 |
-| Bare areas         |     0 |
-| Filled value       |     0 |
-| Water body         |     0 |
+| Bare areas         |  0.00 |
+| Filled value       |     - |
+| Water body         |     - |
 
 ##### 4 Bondla WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  99.69 |
-| Impervious surface |   0.18 |
-| Cropland           |   0.11 |
-| Shrubland          |   0.01 |
+| Forest             |  99.60 |
+| Impervious surface |   0.20 |
+| Cropland           |   0.16 |
+| Shrubland          |   0.03 |
+| Wetland            |   0.01 |
 | Grassland          |   0.01 |
-| Wetland            |      0 |
-| Bare areas         |      0 |
-| Filled value       |      0 |
-| Water body         |      0 |
+| Bare areas         |      - |
+| Filled value       |      - |
+| Water body         |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 99.97 |
+| Forest             | 99.86 |
+| Cropland           |  0.05 |
+| Bare areas         |  0.03 |
+| Shrubland          |  0.02 |
+| Grassland          |  0.01 |
+| Water body         |  0.01 |
 | Wetland            |  0.01 |
-| Shrubland          |  0.01 |
-| Cropland           |     0 |
-| Water body         |     0 |
-| Grassland          |     0 |
-| Bare areas         |     0 |
-| Filled value       |     0 |
-| Impervious surface |     0 |
+| Filled value       |     - |
+| Impervious surface |     - |
 
 ##### 5 Netravali WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  82.09 |
-| Water body         |  10.51 |
-| Wetland            |   4.41 |
-| Cropland           |   1.24 |
-| Shrubland          |   1.16 |
-| Grassland          |   0.53 |
-| Bare areas         |   0.03 |
-| Impervious surface |   0.02 |
-| Filled value       |   0.01 |
+| Forest             |  80.68 |
+| Water body         |  11.30 |
+| Wetland            |   4.68 |
+| Cropland           |   1.47 |
+| Shrubland          |   1.13 |
+| Grassland          |   0.64 |
+| Bare areas         |   0.07 |
+| Impervious surface |   0.04 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Forest             | 98.05 |
-| Shrubland          |  1.54 |
-| Cropland           |  0.14 |
-| Wetland            |  0.11 |
-| Grassland          |  0.09 |
-| Water body         |  0.05 |
+| Forest             | 98.00 |
+| Shrubland          |  1.52 |
+| Cropland           |  0.17 |
+| Wetland            |  0.13 |
+| Grassland          |  0.11 |
+| Water body         |  0.06 |
 | Filled value       |  0.01 |
-| Impervious surface |     0 |
-| Bare areas         |     0 |
+| Impervious surface |  0.00 |
+| Bare areas         |  0.00 |
 
 ##### 6 Cotigaon WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Forest             |  92.59 |
-| Cropland           |   5.16 |
-| Shrubland          |   1.97 |
-| Grassland          |   0.17 |
-| Filled value       |   0.07 |
-| Impervious surface |   0.04 |
-| Bare areas         |      0 |
-| Water body         |      0 |
-| Wetland            |      0 |
+| Forest             |  92.17 |
+| Cropland           |   5.74 |
+| Shrubland          |   1.76 |
+| Grassland          |   0.18 |
+| Filled value       |   0.10 |
+| Impervious surface |   0.06 |
+| Bare areas         |      - |
+| Water body         |      - |
+| Wetland            |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
 | Forest             | 97.64 |
-| Shrubland          |  1.75 |
-| Cropland           |   0.5 |
-| Filled value       |   0.1 |
-| Impervious surface |     0 |
-| Grassland          |     0 |
-| Bare areas         |     0 |
-| Water body         |     0 |
-| Wetland            |     0 |
+| Shrubland          |  1.65 |
+| Cropland           |  0.54 |
+| Filled value       |  0.16 |
+| Impervious surface |  0.00 |
+| Grassland          |  0.00 |
+| Bare areas         |     - |
+| Water body         |     - |
+| Wetland            |     - |
 
 ##### 7 Dr Salim Ali WLS
 
-| basic_name         | buffer |
+| Basic name         | buffer |
 | :----------------- | -----: |
-| Water body         |   37.1 |
-| Forest             |  33.15 |
-| Wetland            |  19.55 |
-| Cropland           |   8.54 |
-| Impervious surface |   0.92 |
-| Shrubland          |   0.36 |
-| Grassland          |    0.3 |
-| Bare areas         |   0.09 |
-| Filled value       |      0 |
+| Water body         |  36.54 |
+| Forest             |  32.95 |
+| Wetland            |  19.76 |
+| Cropland           |   8.72 |
+| Impervious surface |   1.33 |
+| Grassland          |   0.27 |
+| Shrubland          |   0.22 |
+| Bare areas         |   0.21 |
+| Filled value       |      - |
 
-| basic_name         |    pa |
+| Basic name         |    pa |
 | :----------------- | ----: |
-| Water body         |  56.5 |
-| Wetland            | 31.71 |
-| Forest             |  11.4 |
-| Cropland           |  0.34 |
-| Bare areas         |  0.05 |
-| Grassland          |     0 |
-| Filled value       |     0 |
-| Shrubland          |     0 |
-| Impervious surface |     0 |
+| Water body         | 52.75 |
+| Wetland            | 33.52 |
+| Forest             | 12.57 |
+| Cropland           |  0.73 |
+| Bare areas         |  0.43 |
+| Filled value       |     - |
+| Grassland          |     - |
+| Impervious surface |     - |
+| Shrubland          |     - |
 
 ### 2 - Land-cover over time
 
@@ -864,9 +844,9 @@ land_cover_area = pd.read_feather('feathers/land_cover_area.feather')
 land_cover_types = pd.read_feather('feathers/GLC_FCS30D_landcover_types.feather')
 
 # Aggregate the data along both axes
-land_cover_area = land_cover_area.groupby(['esz', 'part', 'year']).sum()
+land_cover_area = land_cover_area.groupby(['esz', 'part', 'year']).sum(min_count=1)
 
-land_cover_area = land_cover_area.T.groupby('basic_id').sum().T
+land_cover_area = land_cover_area.T.groupby('basic_id').sum(min_count=1).T
 
 # Convert sq. m to ha
 land_cover_area /= 10000
@@ -890,10 +870,9 @@ figs = []
 
 for name, group in lc_area_grouped:
        name_parts = name[0].split('_') + [name[1]]
-       # Difference of row n from n - 1
-       # Drop data pre 2000
+       # Difference of row n from previous period
        # Cumulative sum of differences
-       group_cum_diff = group.loc[group.index.get_level_values('year') >= dt.datetime(2000,1,1)].diff().cumsum().fillna(0)
+       group_cum_diff = group.dropna(axis=0, how='all').diff().cumsum()
        # Rename IDs to basic classification system names
        new_names = {k : v for k, v in lc_names.items() if k in group_cum_diff.columns.to_list()}
        group_cum_diff = group_cum_diff.rename(columns=new_names)
@@ -902,7 +881,7 @@ for name, group in lc_area_grouped:
        fig, ax = plt.subplots(num='_'.join(name_parts))
        # Set y-axis to years
        # Plot
-       group_cum_diff.reset_index(list(group_cum_diff.index.names)[:-1]).plot.line(ax=ax, color=group_colors, linewidth=3)
+       group_cum_diff.reset_index(list(group_cum_diff.index.names)[:-1]).plot.line(ax=ax, color=group_colors, linewidth=2, marker='.', markersize=6)
        # Set legend position and shape
        ax.legend(title='Basic land-cover types', loc='lower center', ncols=len(new_names))
        # Set axis positions, formats and titles
