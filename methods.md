@@ -41,7 +41,7 @@ Since all the areas of interest lie within the state of Goa, I have chosen to us
 
 The "geometry" column represents the boundaries of the PAs not including the 1,000 m buffers. Therefore, the buffers would be the set of polygons extending from the current geometry columns outward 1,000 m. The polygons include a Z axis which is not relevant for the current analysis.
 
-These buffers do not take into account the fact that most of the PAs are contiguous and along Goa's eastern border. The buffers overlap each other, other PAs or fall outside the state. They need to be clipped to account for these inconsistencies.
+These buffers do not take into account the fact that most of the PAs are contiguous and along Goa's eastern border. The buffers overlap each other, other PAs or fall outside the state. They need to be clipped to account for these inconsistencies. Because of minor misalignments between the polygons representing each PA and the polygon representing the state, there are artifacts left over from the clip. These small areas along the state border and at the points where PAs meet need to be deleted leaving only the single buffer polygon.
 
 The state's boundaries are taken from [the SHRUG](https://www.devdatalab.org/shrug) and preprocessed to include only the polygon representing Goa and have been reprojected into [EPSG:7779](https://spatialreference.org/ref/epsg/7779/).
 
@@ -50,52 +50,71 @@ This data set is saved as "eszs.feather".
 ```
 import geopandas as gp
 
-pas = gp.read_file('data/Goa_protected_areas/Notified_PA_Goa.shp')
+eszs = gp.read_file('data/Goa_protected_areas/Notified_PA_Goa.shp')
 
-pas = pas.drop(columns=['Shape_Leng', 'Shape_Area'])
+eszs = eszs.drop(columns=['Shape_Leng', 'Shape_Area'])
 
-pas = pas.rename(columns={'Name': 'name'})
+eszs = eszs.rename(columns={'Name': 'name'})
 
 # Use index values to make ESZ names unique
-pas = pas.reset_index()
+eszs = eszs.reset_index()
 
-pas['index'] = pas['index'].astype(str)
+eszs['index'] = eszs['index'].astype(str)
 
-pas['name'] = pas['index'] + '_' + pas['name'].str.replace(' ', '_').str.replace('.', '')
+eszs['name'] = eszs['index'] + '_' + eszs['name'].str.replace(' ', '_').str.replace('.', '')
 
 # Drop old index column
-pas = pas.drop(columns=['index'])
+eszs = eszs.drop(columns=['index'])
 
-pas = pas.rename(columns={'geometry': 'pa'})
+eszs = eszs.rename(columns={'geometry': 'pa'})
 
-pas['pa'] = pas['pa'].force_2d()
+eszs['pa'] = eszs['pa'].force_2d()
 
 # Set primary geometry
-pas = pas.set_geometry('pa')
+eszs = eszs.set_geometry('pa')
 
 # Reproject to correct CRS
-pas = pas.to_crs('EPSG:7779')
+eszs = eszs.to_crs('EPSG:7779')
 
 # Create polygons 1,000m larger in all directions
-pas['buffer'] = pas['pa'].buffer(1000)
+eszs['buffer'] = eszs['pa'].buffer(1000)
 
 # Subtract PA from the new buffer polygon
-pas['buffer'] = pas['buffer'].difference(pas['pa'])
+eszs['buffer'] = eszs['buffer'].difference(eszs['pa'])
 
 state = gp.read_feather('feathers/admin_units/state.feather')
 
 # Keep only parts of the buffers inside the state
-pas['buffer'] = pas['buffer'].intersection(state.loc['30', 'geometry'])
+eszs['buffer'] = eszs['buffer'].intersection(state.loc['30', 'geometry'])
 
-pa_polygon_list = pas['pa'].to_list()
+pa_polygon_list = eszs['pa'].to_list()
 
 # Subtract PAs from all buffers
 # Keep only buffer areas outside PAs
 for pa_polygon in pa_polygon_list:
-     pas['buffer'] = pas['buffer'].difference(pa_polygon)
+     eszs['buffer'] = eszs['buffer'].difference(pa_polygon)
+
+# Delete artifacts of misalignment between PAs, state boundary, etc.
+buffers = eszs[['name', 'buffer']]
+
+buffers = buffers.set_geometry('buffer')
+
+# Break up multipolygons into constituent pieces
+buffer_parts = buffers.explode(index_parts=True)
+
+# Calculate area of each part
+buffer_parts['part_area'] = buffer_parts.area
+
+# For each buffer, sort descending by area, keep largest only
+new_buffers = buffer_parts.sort_values(['name', 'part_area'], ascending=False).groupby('name').first()
+
+new_buffers = new_buffers.reset_index()
+
+# Add new buffers to ESZs
+eszs['buffer'] = new_buffers['buffer']
 
 # Uncomment below to save the dataset
-# pas.to_feather('feathers/eszs.feather')
+# eszs.to_feather('feathers/eszs.feather')
 ```
 
 **ISSUE** The buffers also intersect with themselves. For any analysis done on a per-PA basis this will not have an impact. However, any analysis done on a state-wide basis will include some double counting for the area within the intersection of the buffers.
@@ -127,7 +146,7 @@ import geopandas as gp
 import pandas as pd
 
 # Read in data
-pas = gp.read_feather('feathers/eszs.feather')
+eszs = gp.read_feather('feathers/eszs.feather')
 
 villages = gp.read_feather('feathers/admin_units/villages.feather')
 
@@ -155,7 +174,7 @@ def clip_villages(row):
 
 gdfs = []
 
-pas.apply(clip_villages, axis=1)
+eszs.apply(clip_villages, axis=1)
 
 # Concatenate all the GeoDataFrames together
 clipped_villages = pd.concat(gdfs)
@@ -180,7 +199,7 @@ state = gp.read_feather('feathers/admin_units/state.feather')
 
 clipped_villages = gp.read_feather('feathers/clipped_villages.feather')
 
-pas = gp.read_feather('feathers/eszs.feather')
+eszs = gp.read_feather('feathers/eszs.feather')
 
 # Create the figure and axis
 fig, ax = plt.subplots(layout='tight', num='State-wide')
@@ -198,10 +217,10 @@ ax.annotate(text='Goa', xy=state.loc['30'].geometry.representative_point().coord
 clipped_villages.plot(ax=ax, linewidth=0.5, ec='grey', fc='none', linestyle='--')
 
 # Plot all PAs
-pas['pa'].plot(ax=ax, fc='none', ec='green', linewidth=0.5)
+eszs['pa'].plot(ax=ax, fc='none', ec='green', linewidth=0.5)
 
 # Plot all buffers
-pas['buffer'].plot(ax=ax, fc='none', ec='blue', linewidth=0.5)
+eszs['buffer'].plot(ax=ax, fc='none', ec='blue', linewidth=0.5)
 
 # Add PA names with apply function
 def add_names(row):
@@ -217,7 +236,7 @@ def add_names(row):
         fontsize='medium',
     )
 
-pas.apply(add_names, axis=1)
+eszs.apply(add_names, axis=1)
 
 # Uncomment below to save the state-wide png
 # fig.savefig('pngs/maps/state_wide_pas_buffers.png', dpi=150, format='png', bbox_inches='tight')
@@ -297,9 +316,9 @@ def map_buffers(row):
 
 figs = []
 
-pas.apply(map_pas, axis=1)
+eszs.apply(map_pas, axis=1)
 
-pas.apply(map_buffers, axis=1)
+eszs.apply(map_buffers, axis=1)
 
 # Uncomment below to save all individual PA and buffer maps
 # for fig in figs:
@@ -334,18 +353,15 @@ The sections are Google Earth Engine image collections containing 2 images each,
 
 The land-cover types, their IDs, descriptive names and colour codes are stored in the "GLC_FCS30D_land_cover_types.feather" dataset.
 
-The final dataset is created by taking the frequency of each land-cover type within each admin. unit polygon for each time interval and multiplying it by the resolution (30x30 m). This results in a dataframe with each admin. unit from "clipped_villages.feather" associated with the area in square metres of each land-cover type for each time interval (either five-yearly or annual).
+The aggregated dataset is created by taking the frequency of each land-cover type within each admin. unit polygon for each time interval and multiplying it by the resolution (30x30 m). This results in a dataframe with each admin. unit from "clipped_villages.feather" associated with the area in square metres of each land-cover type for each time interval (either five-yearly or annual).
 
 Each admin. unit is indexed by:
 
 1. ESZ name - e.g. 0_Mhadei_WLS
 2. ESZ part - either "pa" or "buffer"
-3. Political Census of India 2011 state ID
-4. Political Census of India 2011 district ID
-5. Political Census of India 2011 subdistrict ID
-6. Political Census of India 2011 town/village ID
-7. Year - 1985 to 2000 in 5 year intervals, 2000 to 2022 in 1 year intervals
-8. Name of the admin. unit
+3. Political Census of India 2011 town/village ID
+4. Name of the admin. unit
+5. Year - 1985 to 2000 in 5 year intervals, 2000 to 2022 in 1 year intervals
 
 The admin. units can be linked back to their individual polygons and the polygons for the PAs and buffers using the "clipped_villages.feather" dataset.
 
@@ -371,6 +387,16 @@ import datetime as dt
 # Read in data
 clipped_villages = gp.read_feather('feathers/clipped_villages.feather')
 
+# List of index columns
+idx_names = ['esz', 'part', 'pc11_town_village_id', 'name']
+
+# Drop unnecessary columns
+clipped_villages = clipped_villages.reset_index()
+
+drops = list(set(clipped_villages.columns.to_list()) - set(idx_names + ['geometry']))
+
+clipped_villages = clipped_villages.drop(columns=drops)
+
 # Uncomment to authenticate with your
 #   Google Earth Engine credentials
 # ee.Authenticate()
@@ -380,9 +406,7 @@ ee.Initialize(project='XXXXXXXXXXXXXX')
 
 # Convert GeoDataFrame to Earth Engine FeatureCollection
 #   Reporject to EPSG:4326, Google Earth Engine's default
-to_fc = clipped_villages.drop(columns=['mdds_og'])
-
-to_fc = to_fc.to_crs('EPSG:4326')
+to_fc = clipped_villages.to_crs('EPSG:4326')
 
 village_fc = gm.gdf_to_ee(to_fc)
 
@@ -424,7 +448,7 @@ lc_data_fc = lc_data_fc.select(propertySelectors=['.*'], retainGeometry=False)
 lc_data_df = gm.ee_to_df(lc_data_fc)
 
 # Unpivot years from columns to values
-lc_data_df = pd.melt(lc_data_df, id_vars=['esz', 'part', 'pc11_state_id', 'pc11_district_id', 'pc11_subdistrict_id', 'pc11_town_village_id', 'name'], var_name='year')
+lc_data_df = pd.melt(lc_data_df, id_vars=idx_names, var_name='year')
 
 # Spread "value" column dictionary into
 #   columns of land-cover types
@@ -434,7 +458,11 @@ lc_data_df = pd.concat([lc_data_df, pd.json_normalize(lc_data_df['value'])], axi
 lc_data_df['year'] = pd.to_datetime(lc_data_df['year'], format="%Y")
 
 # Set index
-lc_data_df = lc_data_df.set_index(['esz', 'part', 'pc11_state_id', 'pc11_district_id', 'pc11_subdistrict_id', 'pc11_town_village_id', 'name', 'year'])
+idx_names.append('year')
+
+lc_data_df = lc_data_df.set_index(idx_names)
+
+lc_data_df = lc_data_df.sort_index()
 
 # Sort land-cover type columns
 lc_type_cols = lc_data_df.select_dtypes(include='number').columns.to_list()
@@ -464,21 +492,16 @@ lc_data_df.columns = pd.MultiIndex.from_tuples(t for t in lc_type_tuples if str(
 
 lc_data_df.columns.names = ['basic_id', 'level_1_id', 'fine_id']
 
-# Replace NaNs with 0s
-lc_data_df = lc_data_df.fillna(0)
-
 # Separate annual and five-yearly data
 annual = lc_data_df.loc[lc_data_df.index.get_level_values('year') > dt.datetime(2000,1,1)]
 
 five_year = lc_data_df.loc[lc_data_df.index.get_level_values('year') <= dt.datetime(2000,1,1)]
 
 # Resample five-yearly data to annual
-idx_names = list(five_year.index.names)
-
 resampled = five_year.reset_index(idx_names[:-1]).groupby(idx_names[:-1], group_keys=False).resample('YS').first()
 
-# Forward fill new data
-resampled = resampled.ffill()
+# Forward fill index columns
+resampled.loc[:,idx_names[:-1]] = resampled.loc[:,idx_names[:-1]].ffill()
 
 # Reset index
 resampled = resampled.reset_index().set_index(idx_names)
@@ -498,11 +521,11 @@ lc_data_df *= (30 * 30)
 # Check the difference between total area of
 #   an admin. unit's total land-cover types and
 #   polygon
-areas = pd.DataFrame(lc_data_df.sum(axis=1))
+areas = pd.DataFrame(lc_data_df.sum(axis=1, min_count=1))
 
 areas = areas.rename(columns={0: 'land_cover'})
 
-areas['polygon'] = clipped_villages['geometry'].area
+areas['polygon'] = clipped_villages.set_index(idx_names[:-1]).area
 
 areas['difference'] = areas['polygon'] - areas['land_cover']
 
@@ -514,25 +537,25 @@ print(area_stats.to_markdown())
 # areas.to_feather('feathers/areas.feather')
 ```
 
-**ISSUE** It would be better to interpolate the new rows instead of just forward filling them. When I tried the land-cover and polygon areas no longer matched. I need to look closer at the different interpolation strategies available.
-
 There are a total of 247 admin. units in the clipped_villages dataset. Each village should be represented by a set of rows for each year between 1985 and 2022 inclusive. The land_cover_frequency and land_cover_area datasets contain exactly: 247 x 38 = 9,386 rows of data indicating they are valid for the timeseries in question.
 
 ##### Difference in areas between land-cover and polygons
 
-|      |   polygon(m2) | difference (m2) |
+|      |  polygon (m2) | difference (m2) |
 | :--- | ------------: | --------------: |
-| mean |  4,159,400.00 |          362.42 |
-| std  |  8,793,100.00 |          421.17 |
+| mean |  4,525,050.00 |          361.76 |
+| std  |  9,116.150.00 |          399.74 |
 | min  |          1.05 |         -723.20 |
-| 25%  |    201,948.00 |          107.82 |
-| 50%  |  1,565,900.00 |          256.96 |
-| 75%  |  3,697,260.00 |          502.43 |
-| max  | 85,424,800.00 |        2,897.57 |
+| 25%  |    323,029.00 |          112.31 |
+| 50%  |  1,899,410.00 |          266.62 |
+| 75%  |  3,917,340.00 |          497.15 |
+| max  | 85,424,800.00 |        2,597.32 |
 
 As the table above shows there is a difference between the area of any given admin. unit when calculated by summing up all the land-cover type areas vs. the area of its polygon. This is because when the global land-cover dataset is reduced to match the polygons defining the admin. units, some pixels are only partially contained within the polygons. The [frequency histogram reducer](https://developers.google.com/earth-engine/apidocs/ee-reducer-frequencyhistogram) uses a weighting algorithm to determine if the value of that pixel should be included or not.
 
 On average this difference represents less than 0.001% of the area of the admin. unit, granted with a significant variability in the statistic, an indication of a reasonably good fit between land-cover area and actual area.
+
+<!--TODO: clean up from here on -->
 
 ## Data analysis methods
 
