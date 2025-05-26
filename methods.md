@@ -532,9 +532,6 @@ areas['difference'] = areas['polygon'] - areas['land_cover']
 area_stats = areas[['polygon', 'difference']].describe()
 
 print(area_stats.to_markdown())
-
-# Uncomment below to save the area dataset
-# areas.to_feather('feathers/areas.feather')
 ```
 
 There are a total of 247 admin. units in the clipped_villages dataset. Each village should be represented by a set of rows for each year between 1985 and 2022 inclusive. The land_cover_frequency and land_cover_area datasets contain exactly: 247 x 38 = 9,386 rows of data indicating they are valid for the timeseries in question.
@@ -574,35 +571,30 @@ lc_types = pd.read_feather('feathers/GLC_FCS30D_landcover_types.feather')
 # Average all years' data grouped by ESZ, part, village name
 avg_cover = land_cover_area.groupby(['esz', 'part', 'name']).mean()
 
-# Group by village and sum
+# Group by village, sum and recalculate fraction
 avg_cover = avg_cover.groupby(['esz', 'part']).sum(min_count=1)
 
-# Convert area to fraction of total
 avg_fraction_cover = avg_cover.div(avg_cover.sum(axis=1, min_count=1), axis=0)
 
 # Transpose
-fine_mean = avg_fraction_cover.T
+avg_types = avg_fraction_cover.T
 
-# Reset index to names of land-cover types
-fine_mean[['basic_name', 'level_1_name', 'fine_name']] = lc_types[['basic_classification_system', 'level_1_validation_system', 'fine_classification_system']]
+# Add names of land-cover types
+avg_types[['basic_name']] = lc_types[['basic_classification_system']]
 
-fine_mean.loc[('XXX', 'XXX', '0'), ['basic_name', 'level_1_name', 'fine_name']] = 'Filled value'
-
-fine_mean = fine_mean.set_index(['basic_name', 'level_1_name', 'fine_name'])
+avg_types.loc[('XXX'), 'basic_name'] = 'Filled value'
 
 # Aggregate means by land-cover aggregation levels
-level_1_mean = fine_mean.groupby(['basic_name', 'level_1_name']).sum(min_count=1)
+avg_basic_types = avg_types.groupby('basic_name').sum(min_count=1)
 
-basic_mean = fine_mean.groupby(['basic_name']).sum(min_count=1)
-
-eszs = list(set(x[0] for x in fine_mean.columns.to_list()))
+eszs = list(set(x[0] for x in avg_basic_types.columns.to_list()))
 
 eszs.sort()
 
 # Print Markdown tables of basic classification types for each ESZ
 for e in eszs:
-     b_df_buffer = basic_mean[e]['buffer'].mul(100).sort_values(ascending=False).round(2)
-     b_df_pa = basic_mean[e]['pa'].mul(100).sort_values(ascending=False).round(2)
+     b_df_buffer = avg_basic_types[e]['buffer'].mul(100).sort_values(ascending=False).round(2)
+     b_df_pa = avg_basic_types[e]['pa'].mul(100).sort_values(ascending=False).round(2)
      print()
      print(e.replace('_', ' '))
      print()
@@ -610,11 +602,6 @@ for e in eszs:
      print()
      print(b_df_pa.reset_index().to_markdown(index=False))
      print()
-
-# Uncomment below to save mean datasets
-# fine_mean.to_feather('feathers/fine_mean.feather')
-# level_1_mean.to_feather('feathers/level_1_mean.feather')
-# basic_mean.to_feather('feathers/basic_mean.feather')
 ```
 
 ##### 0 Mhadei WLS
