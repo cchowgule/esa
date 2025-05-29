@@ -849,26 +849,30 @@ lc_colors = {k : tuple([float(x)/255 for x in v]) for k, v in lc_colors.items()}
 
 lc_colors['Filled value'] = (0.0, 0.0, 0.0)
 
-# Group by ESZ and part for individual plots
-lc_area_grouped = land_cover_area.groupby(['esz', 'part'], as_index=False, group_keys=False)
+# Get land cover type names
+new_names = {k : v for k, v in lc_names.items() if k in land_cover_area.columns.to_list()}
 
-# Loop over ESZ parts
+land_cover_area = land_cover_area.rename(columns=new_names)
+
+# Get land cover type colours
+group_colors = {k : v for k, v in lc_colors.items() if k in land_cover_area.columns.to_list()}
+
+# Drop empty years
+land_cover_area = land_cover_area.dropna(axis=0, how='all')
+
+# Group by ESZ and part for individual plots
+lc_area_diff_cumsum = land_cover_area.groupby(['esz', 'part'], as_index=False, group_keys=False).transform(lambda part: part.diff().cumsum())
+
 figs = []
 
-for name, group in lc_area_grouped:
+# Loop over ESZ parts,
+# plot their cummulative differences,
+# add the graphs to a list
+for name, group in lc_area_diff_cumsum.groupby(['esz', 'part'], as_index=False, group_keys=False):
        name_parts = name[0].split('_') + [name[1]]
-       # Difference of row n from previous period
-       # Cumulative sum of differences
-       group_cum_diff = group.dropna(axis=0, how='all').diff().cumsum()
-       # Rename IDs to basic classification system names
-       new_names = {k : v for k, v in lc_names.items() if k in group_cum_diff.columns.to_list()}
-       group_cum_diff = group_cum_diff.rename(columns=new_names)
-       # Get dictionary of colours matched to names
-       group_colors = {k : v for k, v in lc_colors.items() if k in group_cum_diff.columns.to_list()}
-       fig, ax = plt.subplots(num='_'.join(name_parts))
        # Set y-axis to years
-       # Plot
-       group_cum_diff.reset_index(list(group_cum_diff.index.names)[:-1]).plot.line(ax=ax, color=group_colors, linewidth=2, marker='.', markersize=6)
+       fig, ax = plt.subplots(num='_'.join(name_parts))
+       group.reset_index(list(group.index.names)[:-1]).plot.line(ax=ax, color=group_colors, linewidth=2, marker='.', markersize=6)
        # Set legend position and shape
        ax.legend(title='Basic land-cover types', loc='lower center', ncols=len(new_names))
        # Set axis positions, formats and titles
