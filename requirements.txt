@@ -52,7 +52,7 @@ ipyevents==2.0.2
 ipyfilechooser==0.6.0
 ipykernel==6.29.5
 ipyleaflet==0.19.2
-ipython==9.3.0
+ipython==8.37.0
 ipython_pygments_lexers==1.1.1
 ipytree==0.2.2
 ipywidgets==8.1.7
