@@ -2,7 +2,10 @@
 
 Not sure yet
 
+**Ensure that you are registered for Google Earth Engine access and have a valid project**
+
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cchowgule/esa/main?urlpath=%2Fdoc%2Ftree%2Fesa.ipynb)
+
 _Changes made on the binder will not persist in this repo_
 
 ## Python installation
